@@ -1,0 +1,5 @@
+signal_service
+.idea/
+.env
+.env*
+go/
