@@ -3,15 +3,17 @@ package main
 import (
 	"fmt"
 	"github.com/buaazp/fasthttprouter"
+	"github.com/joho/godotenv"
 	"github.com/valyala/fasthttp"
+	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
 	"log"
-	"gitlab.com/crypto_project/core/proxypool_service/src/proxypool"
 )
 
 
 func GetProxy(ctx *fasthttp.RequestCtx) {
 	exchange := string(ctx.QueryArgs().Peek("exchange"))
-	_, _ = fmt.Fprint(ctx, proxypool.GetProxyPool().GetProxyByExchange(exchange))
+
+	_, _ = fmt.Fprint(ctx, pool.GetProxyPoolInstance().GetProxyByExchange(exchange))
 }
 
 // Index is the index handler
@@ -20,8 +22,10 @@ func Index(ctx *fasthttp.RequestCtx) {
 }
 
 func main() {
-	router := fasthttprouter.New()
+	godotenv.Load()
 
+	router := fasthttprouter.New()
+	pool.GetProxyPoolInstance()
 	router.GET("/", Index)
 	router.GET("/getProxy", GetProxy)
 
