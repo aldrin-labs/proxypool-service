@@ -1,5 +1,8 @@
 package main
 
-struct ProxyPool {
-	proxies string[]
+ type ProxyPool struct{
+	proxies [] string
+	currentProxyIndex int
+	ExchangeProxyMap map[string]map[string] int // Exchange -> Proxy -> Requests Made
 }
+
