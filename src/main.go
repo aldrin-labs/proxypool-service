@@ -24,6 +24,10 @@ func Index(ctx *fasthttp.RequestCtx) {
 	fmt.Fprint(ctx, "Welcome!\n")
 }
 
+func Healthz(ctx *fasthttp.RequestCtx) {
+	fmt.Fprint(ctx, "alive!\n")
+}
+
 func main() {
 	godotenv.Load()
 
@@ -31,6 +35,8 @@ func main() {
 	pool.GetProxyPoolInstance()
 	router.GET("/", Index)
 	router.GET("/getProxy", GetProxy)
+	router.GET("/healthz", Healthz)
 
+	println("Listening on port :5901")
 	log.Fatal(fasthttp.ListenAndServe(":5901", router.Handler))
 }

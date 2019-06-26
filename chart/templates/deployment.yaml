@@ -35,13 +35,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 5082
+            port: 5901
           initialDelaySeconds: 1
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /healthz
-            port: 5082
+            port: 5901
           initialDelaySeconds: 1
           periodSeconds: 10
         resources:
