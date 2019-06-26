@@ -27,7 +27,7 @@ spec:
         - name: PROXYLIST
           valueFrom:
             secretKeyRef:
-              name: signal-secrets
+              name: proxypool-secrets
               key: proxylist
         ports:
         - name: "{{ .Values.service.name }}"
