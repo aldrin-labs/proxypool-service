@@ -17,8 +17,6 @@ type Limit struct {
 
 
 type Proxy struct {
-	RequestsMade int64
-	LastTimestamp int64
 	RateLimiter ratelimit.Limiter
 }
 
@@ -50,25 +48,11 @@ func newProxySingleton() *ProxyPool {
 
 	for _, proxy := range proxies {
 		proxyMap["binance"][proxy] = &Proxy{
-			RequestsMade: 0,
-			LastTimestamp: time.Now().UnixNano(),
-			RateLimiter: ratelimit.New(80),
+			RateLimiter: ratelimit.New(4), // 80 / min
 		}
 		proxyMap["bittrex"][proxy] = &Proxy{
-			RequestsMade: 0,
-			LastTimestamp: time.Now().UnixNano(),
-			RateLimiter: ratelimit.New(57),
+			RateLimiter: ratelimit.New(1), // 57 / min
 		}
-	}
-
-	limitMap := map[string] *Limit{}
-	limitMap["binance"] = &Limit{
-		requests: 1,
-		overPeriod: 800,
-	}
-	limitMap["bittrex"] = &Limit{
-		requests: 1,
-		overPeriod: 1200,
 	}
 
 	// env PROXYLIST
@@ -76,7 +60,6 @@ func newProxySingleton() *ProxyPool {
 		Proxies:proxies,
 		CurrentProxyIndex: 0,
 		ExchangeProxyMap: proxyMap,
-		LimitMap: limitMap,
 	}
 }
 
@@ -105,22 +88,7 @@ func (pp *ProxyPool) GetProxyByExchange(exchangeName string) string {
 	// currentTime := time.Now().UnixNano()
 	currentRequests := pp.ExchangeProxyMap[exchangeName][currentProxy]
 	_ = currentRequests.RateLimiter.Take()
-	//limit := pp.LimitMap[exchangeName]
-	//pp.ExchangeProxyMap[exchangeName][currentProxy].RequestsMade += 1
-	// if made more requests than in limit faster than given period
-	//if currentRequests.RequestsMade > limit.requests &&
-	//	currentTime - currentRequests.LastTimestamp < limit.overPeriod {
-	//	duration :=
-	//		time.Millisecond * time.Duration(limit.overPeriod - (currentTime - currentRequests.LastTimestamp))
-	//
-	//	time.Sleep(duration)
-	//}
-	//
-	//currentTime = time.Now().UnixNano()
-	//if currentTime - currentRequests.LastTimestamp > limit.overPeriod {
-	//	pp.ExchangeProxyMap[exchangeName][currentProxy].LastTimestamp = currentTime
-	//	pp.ExchangeProxyMap[exchangeName][currentProxy].RequestsMade = 0
-	//}
+
 
 	return currentProxy
 }
