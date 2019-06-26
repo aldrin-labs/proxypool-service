@@ -20,9 +20,9 @@ service:
   name: nginx
   type: ClusterIP
   containerPort: 5082
-  internalPort: 3000
+  internalPort: 5901
   ports:
-  - http: 5082
+  - http: 5901
 
 proxyConnectTimeout: 15
 proxyReadTimeout: 600

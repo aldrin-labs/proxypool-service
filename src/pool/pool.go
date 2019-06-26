@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"time"
 
 	"go.uber.org/ratelimit"
 )

@@ -24,92 +24,11 @@ spec:
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         env:
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: NOTIFICATIONSERVICE
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: notificationservice
-        - name: MONGODBNAME
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: mongodbname
         - name: PROXYLIST
           valueFrom:
             secretKeyRef:
               name: signal-secrets
               key: proxylist
-        - name: RABBITMQ
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: rabbitmq
-        - name: DNSTRAIL
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: dnstrail
-        - name: REDIS_HOST
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: redis-host
-        - name: REDIS_PORT
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: redis-port
-        - name: REDIS_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: redis-password
-        - name: MONGODB
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: mongodb
-        - name: QUEUE_NAME
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: queue-name
-        - name: GOOGLE_AUTH
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: google-auth
-        - name: GOOGLE_APPLICATION_CREDENTIALS
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: google-application-credentials
-        - name: DB_HOST
-          value: 127.0.0.1
-        - name: OHLCDB_NAME
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: ohlcvdb-name
-        - name: OHLCV_TABLE_NAME
-          valueFrom:
-            secretKeyRef:
-              name: signal-secrets
-              key: ohlcvdb-table-name
-        - name: DB_USER
-          valueFrom:
-            secretKeyRef:
-              name: cloudsql-db-credentials
-              key: username
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: cloudsql-db-credentials
-              key: password
         ports:
         - name: "{{ .Values.service.name }}"
           containerPort: {{ .Values.service.internalPort }}
