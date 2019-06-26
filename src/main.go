@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/buaazp/fasthttprouter"
 	"github.com/joho/godotenv"
@@ -11,9 +12,11 @@ import (
 
 
 func GetProxy(ctx *fasthttp.RequestCtx) {
-	exchange := string(ctx.QueryArgs().Peek("exchange"))
+	ctx.SetContentType("application/json; charset=utf8")
 
-	_, _ = fmt.Fprint(ctx, pool.GetProxyPoolInstance().GetProxyByExchange(exchange))
+	exchange := string(ctx.QueryArgs().Peek("exchange"))
+	jsonStr, _ := json.Marshal(pool.GetProxyPoolInstance().GetProxyByExchange(exchange))
+	_, _ = fmt.Fprint(ctx, string(jsonStr))
 }
 
 // Index is the index handler

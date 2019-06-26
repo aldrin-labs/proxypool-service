@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"go.uber.org/ratelimit"
 )
 
 type Limit struct {
@@ -17,6 +19,7 @@ type Limit struct {
 type Proxy struct {
 	RequestsMade int64
 	LastTimestamp int64
+	RateLimiter ratelimit.Limiter
 }
 
 type ProxyPool struct{
@@ -46,8 +49,16 @@ func newProxySingleton() *ProxyPool {
 	proxyMap["bittrex"] = map[string]*Proxy{}
 
 	for _, proxy := range proxies {
-		proxyMap["binance"][proxy] = &Proxy{RequestsMade: 0, LastTimestamp: time.Now().UnixNano()}
-		proxyMap["bittrex"][proxy] = &Proxy{RequestsMade: 0, LastTimestamp: time.Now().UnixNano()}
+		proxyMap["binance"][proxy] = &Proxy{
+			RequestsMade: 0,
+			LastTimestamp: time.Now().UnixNano(),
+			RateLimiter: ratelimit.New(80),
+		}
+		proxyMap["bittrex"][proxy] = &Proxy{
+			RequestsMade: 0,
+			LastTimestamp: time.Now().UnixNano(),
+			RateLimiter: ratelimit.New(57),
+		}
 	}
 
 	limitMap := map[string] *Limit{}
@@ -85,25 +96,31 @@ func (pp *ProxyPool) GetProxyByExchange(exchangeName string) string {
 	if pp.CurrentProxyIndex >= len(pp.Proxies) {
 		pp.CurrentProxyIndex = 0
 	}
+	if currentIndex >= len(pp.Proxies) {
+		currentIndex = 0
+	}
+
 	currentProxy := pp.Proxies[currentIndex]
 
-	currentTime := time.Now().UnixNano()
+	// currentTime := time.Now().UnixNano()
 	currentRequests := pp.ExchangeProxyMap[exchangeName][currentProxy]
-	limit := pp.LimitMap[exchangeName]
-	pp.ExchangeProxyMap[exchangeName][currentProxy].RequestsMade += 1
+	_ = currentRequests.RateLimiter.Take()
+	//limit := pp.LimitMap[exchangeName]
+	//pp.ExchangeProxyMap[exchangeName][currentProxy].RequestsMade += 1
 	// if made more requests than in limit faster than given period
-	if currentRequests.RequestsMade > limit.requests &&
-		currentTime - currentRequests.LastTimestamp < limit.overPeriod {
-		duration :=
-			time.Millisecond * time.Duration(limit.overPeriod - (currentTime - currentRequests.LastTimestamp))
-
-		time.Sleep(duration)
-	}
-
-	currentTime = time.Now().UnixNano()
-	if currentTime - currentRequests.LastTimestamp > limit.overPeriod {
-		pp.ExchangeProxyMap[exchangeName][currentProxy].LastTimestamp = currentTime
-	}
+	//if currentRequests.RequestsMade > limit.requests &&
+	//	currentTime - currentRequests.LastTimestamp < limit.overPeriod {
+	//	duration :=
+	//		time.Millisecond * time.Duration(limit.overPeriod - (currentTime - currentRequests.LastTimestamp))
+	//
+	//	time.Sleep(duration)
+	//}
+	//
+	//currentTime = time.Now().UnixNano()
+	//if currentTime - currentRequests.LastTimestamp > limit.overPeriod {
+	//	pp.ExchangeProxyMap[exchangeName][currentProxy].LastTimestamp = currentTime
+	//	pp.ExchangeProxyMap[exchangeName][currentProxy].RequestsMade = 0
+	//}
 
 	return currentProxy
 }
