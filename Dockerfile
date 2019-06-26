@@ -9,7 +9,7 @@ RUN apk update && apk add --no-cache git ca-certificates && update-ca-certificat
 # Create appuser
 RUN adduser -D -g '' appuser
 RUN echo $(ls $GOPATH/src)
-WORKDIR $GOPATH/src/gitlab.com/crypto_project/core/signal_service/
+WORKDIR $GOPATH/src/gitlab.com/crypto_project/core/proxypool_service/
 COPY . .
 # Fetch dependencies.
 #RUN GO111MODULE=on
@@ -22,7 +22,7 @@ COPY . .
 RUN GO111MODULE=on go mod download
 
 #Build
-RUN GO111MODULE=on GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o /go/bin/signal_service ./src/main.go
+RUN GO111MODULE=on GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o /go/bin/proxypool_service ./src/main.go
 
 ############################
 # STEP 2 build a small image
@@ -32,8 +32,8 @@ FROM scratch
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /etc/passwd /etc/passwd
 # Copy our static executable
-COPY --from=builder /go/bin/signal_service /go/bin/signal_service
+COPY --from=builder /go/bin/proxypool_service /go/bin/proxypool_service
 # Use an unprivileged user.
 USER appuser
 # Run the hello binary.
-ENTRYPOINT ["/go/bin/signal_service"]
+ENTRYPOINT ["/go/bin/proxypool_service"]
