@@ -7,6 +7,29 @@ import (
 	"log"
 )
 
+type proxyMap struct {
+	proxymap map[string] int
+}
+
+type exchangeMap struct {
+	exchangemap map[string] proxyMap
+
+}
+
+type proxyService struct {
+	interpreter int
+	proxyS []string
+	ExchangeMap exchangeMap
+	exchangeLimits
+}
+
+
+type exchangeLimits struct {
+	exchangeNames map[string] uint64
+}
+
+
+
 func GetProxy(ctx *fasthttp.RequestCtx) {
 	fmt.Fprint(ctx, "Welcome!\n")
 }
