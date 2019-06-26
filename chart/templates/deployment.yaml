@@ -27,7 +27,7 @@ spec:
         - name: PROXYLIST
           valueFrom:
             secretKeyRef:
-              name: signal-secrets
+              name: proxypool-secrets
               key: proxylist
         ports:
         - name: "{{ .Values.service.name }}"
@@ -35,33 +35,14 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8080
+            port: 5901
           initialDelaySeconds: 1
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /healthz
-            port: 8080
+            port: 5901
           initialDelaySeconds: 1
           periodSeconds: 10
         resources:
 {{ toYaml .Values.resources | indent 12 }}
-      - name: cloudsql-proxy
-        image: gcr.io/cloudsql-docker/gce-proxy:1.11
-        command: ["/cloud_sql_proxy",
-                  "-instances=crypto-currencies-ai:us-central1:ohlcdata=tcp:3306",
-                  "-credential_file=/secrets/cloudsql/credentials.json"]
-        volumeMounts:
-          - name: cloudsql-instance-credentials
-            mountPath: /secrets/cloudsql
-            readOnly: true
-        # [END proxy_container]
-      # [START volumes]
-      volumes:
-        - name: cloudsql-instance-credentials
-          secret:
-            secretName: cloudsql-instance-credentials
-        - name: cloudsql
-          emptyDir:
-      # [END volumes]
-
