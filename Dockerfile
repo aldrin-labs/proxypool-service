@@ -22,7 +22,7 @@ COPY . .
 RUN GO111MODULE=on go mod download
 
 #Build
-RUN GO111MODULE=on GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o /go/bin/signal_service ./main.go
+RUN GO111MODULE=on GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o /go/bin/signal_service ./src/main.go
 
 ############################
 # STEP 2 build a small image
