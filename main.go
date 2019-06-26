@@ -1,26 +1,29 @@
 package main
 
 import (
-	"github.com/joho/godotenv"
-	"gitlab.com/crypto_project/core/signal_service/src/server"
-	"gitlab.com/crypto_project/core/signal_service/src/signals"
-	"sync"
+	"fmt"
+	"github.com/buaazp/fasthttprouter"
+	"github.com/valyala/fasthttp"
+	"log"
+	"gitlab.com/crypto_project/core/proxypool_service/src/proxypool"
 )
 
+
+func GetProxy(ctx *fasthttp.RequestCtx) {
+	exchange := string(ctx.QueryArgs().Peek("exchange"))
+	_, _ = fmt.Fprint(ctx, proxypool.GetProxyPool().GetProxyByExchange(exchange))
+}
+
+// Index is the index handler
+func Index(ctx *fasthttp.RequestCtx) {
+	fmt.Fprint(ctx, "Welcome!\n")
+}
+
 func main() {
-	godotenv.Load()
-	var wg sync.WaitGroup
-	//TODO: init top-level context
-	//notif := filtering.NewNotifier()
-	//log.Println(notif)
-	//sub := mongodb.NewSubscription(notif, "ccai-dev", "notifications2")
-	//go sub.RunDataPull()
-	//log.Println(err)
-	//redisSub := redis.NewSubscription(notif)
-	//go redisSub.RunDataPull()
-	wg.Add(1)
-	go server.RunServer(&wg)
-	wg.Add(1)
-	go signals.GetInstance().Init(&wg)
-	wg.Wait()
+	router := fasthttprouter.New()
+
+	router.GET("/", Index)
+	router.GET("/getProxy", GetProxy)
+
+	log.Fatal(fasthttp.ListenAndServe(":5901", router.Handler))
 }

@@ -1,4 +1,4 @@
-module gitlab.com/crypto_project/core/signal_service
+module gitlab.com/crypto_project/core/proxypool_service
 
 go 1.12
 
