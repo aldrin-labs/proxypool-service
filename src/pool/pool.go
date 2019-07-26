@@ -44,13 +44,17 @@ func newProxySingleton() *ProxyPool {
 
 	proxyMap["binance"] = map[string]*Proxy{}
 	proxyMap["bittrex"] = map[string]*Proxy{}
+	proxyMap["kraken"] = map[string]*Proxy{}
 
 	for _, proxy := range proxies {
+		proxyMap["kraken"][proxy] = &Proxy{
+			RateLimiter: ratelimit.New(1), // 60 / min
+		}
 		proxyMap["binance"][proxy] = &Proxy{
-			RateLimiter: ratelimit.New(4), // 80 / min
+			RateLimiter: ratelimit.New(4), // 240 / min
 		}
 		proxyMap["bittrex"][proxy] = &Proxy{
-			RateLimiter: ratelimit.New(1), // 57 / min
+			RateLimiter: ratelimit.New(1), // 60 / min
 		}
 	}
 
