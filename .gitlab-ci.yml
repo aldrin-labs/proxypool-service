@@ -55,7 +55,7 @@ build:
   stage: build
   image: docker:git
   services:
-  - docker:dind
+  - docker:19.03.5-dind
   variables:
     DOCKER_DRIVER: overlay2
   script:
@@ -77,7 +77,7 @@ codequality:
     DOCKER_DRIVER: overlay2
   allow_failure: true
   services:
-    - docker:dind
+    - docker:19.03.5-dind
   script:
     - setup_docker
     - codeclimate
@@ -100,7 +100,7 @@ sast:container:
     DOCKER_DRIVER: overlay2
   allow_failure: true
   services:
-    - docker:dind
+    - docker:19.03.5-dind
   script:
     - setup_docker
     - sast_container
