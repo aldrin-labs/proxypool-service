@@ -24,7 +24,7 @@
 # `.buildpacks` that contains the URLs, one on each line, in order.
 # Note: Auto CI does not work with multiple buildpacks yet
 
-image: alpine:latest
+image: ubuntu:latest
 
 variables:
   # AUTO_DEVOPS_DOMAIN is the application deployment domain and should be set as a variable at the group or project level.
@@ -35,8 +35,8 @@ variables:
   POSTGRES_ENABLED: "false"
   POSTGRES_DB: $CI_ENVIRONMENT_SLUG
 
-  KUBERNETES_VERSION: 1.8.6
-  HELM_VERSION: 2.6.1
+  KUBERNETES_VERSION: 1.16.1
+  HELM_VERSION: 2.16.6
   CODECLIMATE_VERSION: 0.69.0
 
 stages:
@@ -50,8 +50,10 @@ stages:
   - production
   - performance
   - cleanup
-    
-build:
+ 
+  # TODO: enable build test and other stages
+  
+.build:
   stage: build
   image: docker:git
   services:
@@ -64,14 +66,14 @@ build:
   only:
       - branches
 
-test:
+.test:
   stage: test
   script:
     - echo "skip:)"
   only:
     - branches
 
-codequality:
+.codequality:
   image: docker:latest
   variables:
     DOCKER_DRIVER: overlay2
@@ -84,7 +86,7 @@ codequality:
   artifacts:
     paths: [codeclimate.json]
 
-sast:
+.sast:
   image: registry.gitlab.com/gitlab-org/gl-sast:latest
   variables:
     POSTGRES_DB: "false"
@@ -94,7 +96,7 @@ sast:
   artifacts:
     paths: [gl-sast-report.json]
 
-sast:container:
+.sast:container:
   image: docker:latest
   variables:
     DOCKER_DRIVER: overlay2
@@ -107,7 +109,7 @@ sast:container:
   artifacts:
     paths: [gl-sast-container-report.json]
 
-dast:
+.dast:
   stage: dast
   allow_failure: true
   image: owasp/zap2docker-stable
@@ -138,9 +140,9 @@ dast:
 develop_manual:
   stage: develop
   script:
-    - sed -i -e "s%signal-service%signal-service-dev%g" "chart/Chart.yaml"
-    - KUBE_NAMESPACE=${KUBE_NAMESPACE}-${CI_ENVIRONMENT_NAME}
     - install_dependencies
+    - config_aws
+    - config_kubectl
     - download_chart
     - ensure_namespace
     - install_tiller
@@ -161,9 +163,9 @@ develop_manual:
 develop:
   stage: develop
   script:
-    - sed -i -e "s%signal-service%signal-service-dev%g" "chart/Chart.yaml"
-    - KUBE_NAMESPACE=${KUBE_NAMESPACE}-${CI_ENVIRONMENT_NAME}
     - install_dependencies
+    - config_aws
+    - config_kubectl
     - download_chart
     - ensure_namespace
     - install_tiller
@@ -191,6 +193,8 @@ production:
   stage: production
   script:
     - install_dependencies
+    - config_aws
+    - config_kubectl
     - download_chart
     - ensure_namespace
     - install_tiller
@@ -307,11 +311,12 @@ production:
   }
 
   function install_dependencies() {
-    apk add -U openssl curl tar gzip bash ca-certificates git
-    wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub
-    wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.23-r3/glibc-2.23-r3.apk
-    apk add glibc-2.23-r3.apk
-    rm glibc-2.23-r3.apk
+    apt update && apt install -y openssl curl tar gzip unzip bash ca-certificates git
+    #apk add -U openssl curl tar gzip bash ca-certificates git
+    #wget -q -O /etc/apk/keys/sgerrand.rsa.pub https://alpine-pkgs.sgerrand.com/sgerrand.rsa.pub
+    #wget https://github.com/sgerrand/alpine-pkg-glibc/releases/download/2.23-r3/glibc-2.23-r3.apk
+    #apk add glibc-2.23-r3.apk
+    #rm glibc-2.23-r3.apk
 
     curl "https://kubernetes-helm.storage.googleapis.com/helm-v${HELM_VERSION}-linux-amd64.tar.gz" | tar zx
     mv linux-amd64/helm /usr/bin/
@@ -374,6 +379,32 @@ production:
       false
     else
       true
+    fi
+  }
+
+  function config_aws() {
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip -q awscliv2.zip
+    ./aws/install
+
+    echo "Default AWS region - $AWS_DEFAULT_REGION"
+    mkdir -p ~/.aws
+    echo "[default]" >> ~/.aws/credentials
+    echo "aws_access_key_id = $AWS_ACCESS_KEY_ID" >> ~/.aws/credentials
+    echo "aws_secret_access_key = $AWS_SECRET_ACCESS_KEY" >> ~/.aws/credentials
+    echo "[default]" >> ~/.aws/config
+    echo "region=$AWS_DEFAULT_REGION" >> ~/.aws/config
+    echo "output=json" >> ~/.aws/config
+    aws eks update-kubeconfig --name ccai-cluster
+    aws eks update-kubeconfig --name ccai-cluster-dev
+  }
+
+  function config_kubectl() {
+    echo $KUBECONFIG_PROD | base64 -d > ./kubeconfig
+
+    if [[ "$CI_ENVIRONMENT_NAME" == "develop" ]]; then
+      # name=${name}-${CI_ENVIRONMENT_NAME}
+      echo $KUBECONFIG_DEV | base64 -d > ./kubeconfig
     fi
   }
 
