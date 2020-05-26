@@ -258,7 +258,7 @@ production:
   
   function deploy() {
     track="${1-stable}"
-    name="$CI_ENVIRONMENT_SLUG"
+    name="$KUBE_NAMESPACE-release"
 
     if [[ "$track" != "stable" ]]; then
       name="$name-$track"
@@ -282,10 +282,6 @@ production:
     fi
     if [[ -n "$new_replicas" ]]; then
       replicas="$new_replicas"
-    fi
-
-    if [[ "$CI_ENVIRONMENT_NAME" == "develop" ]]; then
-      name=${name}-${CI_ENVIRONMENT_NAME}
     fi
 
     helm upgrade --install \

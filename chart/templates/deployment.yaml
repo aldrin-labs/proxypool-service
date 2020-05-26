@@ -9,6 +9,11 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
 spec:
   replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+      track: "{{ .Values.application.track }}"
+      tier: "{{ .Values.application.tier }}"
   template:
     metadata:
       labels:
