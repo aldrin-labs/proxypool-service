@@ -59,10 +59,11 @@ build:
   variables:
     DOCKER_DRIVER: overlay2
   script:
+    - ls
     - setup_docker
     - build
   only:
-      - branches
+    - branches
 
 .test:
   stage: test
