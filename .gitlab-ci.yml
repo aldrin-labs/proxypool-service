@@ -50,10 +50,8 @@ stages:
   - production
   - performance
   - cleanup
- 
-  # TODO: enable build test and other stages
   
-.build:
+build:
   stage: build
   image: docker:git
   services:
