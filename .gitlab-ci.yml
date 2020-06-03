@@ -208,6 +208,7 @@ production:
   only:
     refs:
       - master
+      - master-aws
     kubernetes: active
 
 # ---------------------------------------------------------------------------
@@ -390,8 +391,14 @@ production:
     echo "[default]" >> ~/.aws/config
     echo "region=$AWS_DEFAULT_REGION" >> ~/.aws/config
     echo "output=json" >> ~/.aws/config
-    aws eks update-kubeconfig --name ccai-cluster
-    aws eks update-kubeconfig --name ccai-cluster-dev
+
+    if [[ "$CI_ENVIRONMENT_NAME" == "develop" ]]; then
+      echo "Configuring aws in DEV environment"
+      aws eks update-kubeconfig --name ccai-cluster-dev
+    else
+      echo "Configuring aws in PROD environment"
+      aws eks update-kubeconfig --name ccai-cluster
+    fi
   }
 
   function config_kubectl() {
