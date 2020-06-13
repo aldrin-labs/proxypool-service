@@ -55,14 +55,15 @@ build:
   stage: build
   image: docker:git
   services:
-  - docker:19.03.5-dind
+  - docker:dind
   variables:
     DOCKER_DRIVER: overlay2
   script:
+    - ls
     - setup_docker
     - build
   only:
-      - branches
+    - branches
 
 .test:
   stage: test
@@ -77,7 +78,7 @@ build:
     DOCKER_DRIVER: overlay2
   allow_failure: true
   services:
-    - docker:19.03.5-dind
+    - docker:dind
   script:
     - setup_docker
     - codeclimate
@@ -100,7 +101,7 @@ build:
     DOCKER_DRIVER: overlay2
   allow_failure: true
   services:
-    - docker:19.03.5-dind
+    - docker:dind
   script:
     - setup_docker
     - sast_container
@@ -207,6 +208,7 @@ production:
   only:
     refs:
       - master
+      - master-aws
     kubernetes: active
 
 # ---------------------------------------------------------------------------
@@ -389,12 +391,19 @@ production:
     echo "[default]" >> ~/.aws/config
     echo "region=$AWS_DEFAULT_REGION" >> ~/.aws/config
     echo "output=json" >> ~/.aws/config
-    aws eks update-kubeconfig --name ccai-cluster
-    aws eks update-kubeconfig --name ccai-cluster-dev
+
+    if [[ "$CI_ENVIRONMENT_NAME" == "develop" ]]; then
+      echo "Configuring aws in DEV environment"
+      aws eks update-kubeconfig --name ccai-cluster-dev
+    else
+      echo "Configuring aws in PROD environment"
+      aws eks update-kubeconfig --name ccai-cluster
+    fi
   }
 
   function config_kubectl() {
-    echo $KUBECONFIG_PROD | base64 -d > ./kubeconfig
+    apt-get install coreutils
+    echo $KUBECONFIG_PROD | base32 -d > ./kubeconfig
 
     if [[ "$CI_ENVIRONMENT_NAME" == "develop" ]]; then
       # name=${name}-${CI_ENVIRONMENT_NAME}
