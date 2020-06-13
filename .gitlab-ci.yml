@@ -402,7 +402,8 @@ production:
   }
 
   function config_kubectl() {
-    echo $KUBECONFIG_PROD | base64 -d > ./kubeconfig
+    apt-get install coreutils
+    echo $KUBECONFIG_PROD | base32 -d > ./kubeconfig
 
     if [[ "$CI_ENVIRONMENT_NAME" == "develop" ]]; then
       # name=${name}-${CI_ENVIRONMENT_NAME}
