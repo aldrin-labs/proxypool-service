@@ -8,14 +8,19 @@ import (
 	"github.com/valyala/fasthttp"
 	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
 	"log"
+	"strconv"
 )
 
 
 func GetProxy(ctx *fasthttp.RequestCtx) {
 	ctx.SetContentType("application/json; charset=utf8")
 
-	exchange := string(ctx.QueryArgs().Peek("exchange"))
-	jsonStr, _ := json.Marshal(pool.GetProxyPoolInstance().GetProxyByExchange(exchange))
+	priority, err := strconv.Atoi(string(ctx.QueryArgs().Peek("priority")))
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	jsonStr, _ := json.Marshal(pool.GetProxyPoolInstance().GetProxyByPriority(priority))
 	_, _ = fmt.Fprint(ctx, string(jsonStr))
 }
 
