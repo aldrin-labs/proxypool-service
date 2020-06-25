@@ -20,10 +20,10 @@ type Proxy struct {
 }
 
 type ProxyPool struct{
-	Proxies [] string
-	CurrentProxyIndex int
+	Proxies [][] string
+	CurrentProxyIndexes map[int] int
 	LimitMap map[string] *Limit // Exchange -> Proxy -> Requests Made
-	ExchangeProxyMap map[string]map[string] *Proxy // Exchange -> Proxy -> Requests Made
+	ExchangeProxyMap map[int]map[string] *Proxy // Exchange -> Proxy -> Requests Made
 }
 
 // NewSignalSingleton returns SignalSingleton instance
@@ -34,34 +34,35 @@ func newProxySingleton() *ProxyPool {
 		fmt.Println("error:", err)
 		return nil
 	}
-	var proxies [] string
+	var proxies [][] string
 
 	json.Unmarshal([]byte(proxiesJSON), &proxies)
 
 	// exchanges := [2]string{"binance", "bittrex"}
 
-	proxyMap := map[string]map[string]*Proxy{}
+	proxyMap := map[int]map[string]*Proxy{}
+	currentProxyIndexes := map[int]int{}
 
-	proxyMap["binance"] = map[string]*Proxy{}
-	proxyMap["bittrex"] = map[string]*Proxy{}
-	proxyMap["kraken"] = map[string]*Proxy{}
+	// 0 for japan
+	// 1 for russia
 
-	for _, proxy := range proxies {
-		proxyMap["kraken"][proxy] = &Proxy{
-			RateLimiter: ratelimit.New(1), // 60 / min
-		}
-		proxyMap["binance"][proxy] = &Proxy{
-			RateLimiter: ratelimit.New(4), // 240 / min
-		}
-		proxyMap["bittrex"][proxy] = &Proxy{
-			RateLimiter: ratelimit.New(1), // 60 / min
+	proxyMap[0] = map[string]*Proxy{}
+	currentProxyIndexes[0] = 0
+	proxyMap[1] = map[string]*Proxy{}
+	currentProxyIndexes[0] = 0
+
+	for i, proxyArr := range proxies {
+		for _, proxy := range proxyArr {
+			proxyMap[i][proxy] = &Proxy{
+				RateLimiter: ratelimit.New(4), // 240 / min
+			}
 		}
 	}
 
 	// env PROXYLIST
 	return &ProxyPool{
 		Proxies:proxies,
-		CurrentProxyIndex: 0,
+		CurrentProxyIndexes: currentProxyIndexes,
 		ExchangeProxyMap: proxyMap,
 	}
 }
@@ -76,20 +77,20 @@ func GetProxyPoolInstance() *ProxyPool {
 }
 
 
-func (pp *ProxyPool) GetProxyByExchange(exchangeName string) string {
-	currentIndex := pp.CurrentProxyIndex
-	pp.CurrentProxyIndex = pp.CurrentProxyIndex + 1
-	if pp.CurrentProxyIndex >= len(pp.Proxies) {
-		pp.CurrentProxyIndex = 0
+func (pp *ProxyPool) GetProxyByPriority(priority int) string {
+	currentIndex := pp.CurrentProxyIndexes[priority]
+	pp.CurrentProxyIndexes[priority] = currentIndex + 1
+	if currentIndex >= len(pp.Proxies) {
+		pp.CurrentProxyIndexes[priority] = 0
 	}
 	if currentIndex >= len(pp.Proxies) {
 		currentIndex = 0
 	}
 
-	currentProxy := pp.Proxies[currentIndex]
+	currentProxy := pp.Proxies[priority][currentIndex]
 
 	// currentTime := time.Now().UnixNano()
-	currentRequests := pp.ExchangeProxyMap[exchangeName][currentProxy]
+	currentRequests := pp.ExchangeProxyMap[priority][currentProxy]
 	_ = currentRequests.RateLimiter.Take()
 
 
