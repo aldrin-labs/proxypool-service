@@ -4,29 +4,28 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 
 	"go.uber.org/ratelimit"
 )
 
 type Limit struct {
-	requests int64
+	requests   int64
 	overPeriod int64
 }
-
 
 type Proxy struct {
 	RateLimiter ratelimit.Limiter
 }
 
-type ProxyPool struct{
-	Proxies [][] string
-	CurrentProxyIndexes map[int] int
-	LimitMap map[string] *Limit // Exchange -> Proxy -> Requests Made
-	ExchangeProxyMap map[int]map[string] *Proxy // Exchange -> Proxy -> Requests Made
+type ProxyPool struct {
+	Proxies             [][]string
+	CurrentProxyIndexes map[int]int
+	LimitMap            map[string]*Limit         // Exchange -> Proxy -> Requests Made
+	ExchangeProxyMap    map[int]map[string]*Proxy // Exchange -> Proxy -> Requests Made
 }
 
-// NewSignalSingleton returns SignalSingleton instance
 func newProxySingleton() *ProxyPool {
 	proxiesBASE64 := os.Getenv("PROXYLIST")
 	proxiesJSON, err := base64.StdEncoding.DecodeString(proxiesBASE64)
@@ -34,24 +33,23 @@ func newProxySingleton() *ProxyPool {
 		fmt.Println("error:", err)
 		return nil
 	}
-	var proxies [][] string
+	var proxies [][]string
 
 	json.Unmarshal([]byte(proxiesJSON), &proxies)
-
-	// exchanges := [2]string{"binance", "bittrex"}
 
 	proxyMap := map[int]map[string]*Proxy{}
 	currentProxyIndexes := map[int]int{}
 
-	// 0 for japan
-	// 1 for russia
+	// 0 - max priority (e.g. for tgrading), 1 - less priority
 
 	proxyMap[0] = map[string]*Proxy{}
 	currentProxyIndexes[0] = 0
 	proxyMap[1] = map[string]*Proxy{}
-	currentProxyIndexes[0] = 0
+	currentProxyIndexes[1] = 0
 
 	for i, proxyArr := range proxies {
+		log.Printf("Init %d proxies with %d priority...", len(proxyArr), i)
+
 		for _, proxy := range proxyArr {
 			proxyMap[i][proxy] = &Proxy{
 				RateLimiter: ratelimit.New(4), // 240 / min
@@ -59,11 +57,10 @@ func newProxySingleton() *ProxyPool {
 		}
 	}
 
-	// env PROXYLIST
 	return &ProxyPool{
-		Proxies:proxies,
+		Proxies:             proxies,
 		CurrentProxyIndexes: currentProxyIndexes,
-		ExchangeProxyMap: proxyMap,
+		ExchangeProxyMap:    proxyMap,
 	}
 }
 
@@ -76,8 +73,9 @@ func GetProxyPoolInstance() *ProxyPool {
 	return proxySingleton
 }
 
-
 func (pp *ProxyPool) GetProxyByPriority(priority int) string {
+	log.Printf("Got GetProxyByPriority request with %d priority", priority)
+
 	currentIndex := pp.CurrentProxyIndexes[priority]
 	pp.CurrentProxyIndexes[priority] = currentIndex + 1
 	if currentIndex >= len(pp.Proxies) {
@@ -93,7 +91,5 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 	currentRequests := pp.ExchangeProxyMap[priority][currentProxy]
 	_ = currentRequests.RateLimiter.Take()
 
-
 	return currentProxy
 }
-
