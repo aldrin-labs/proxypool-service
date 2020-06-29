@@ -35,7 +35,9 @@ func newProxySingleton() *ProxyPool {
 		return nil
 	}
 	var proxies [][]string
+	println("proxies", proxies)
 	json.Unmarshal([]byte(proxiesJSON), &proxies)
+	println("proxies", proxies)
 
 	proxyMap := map[int]map[string]*Proxy{}
 	currentProxyIndexes := map[int]int{}
@@ -47,6 +49,7 @@ func newProxySingleton() *ProxyPool {
 	proxyMap[1] = map[string]*Proxy{}
 	currentProxyIndexes[1] = 0
 
+	println("proxies after all", proxies)
 	for i, proxyArr := range proxies {
 		log.Printf("Init %d proxies with %d priority...", len(proxyArr), i)
 
