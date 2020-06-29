@@ -4,10 +4,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/ratelimit"
 	"log"
 	"os"
-
-	"go.uber.org/ratelimit"
 )
 
 type Limit struct {
@@ -34,7 +33,6 @@ func newProxySingleton() *ProxyPool {
 		return nil
 	}
 	var proxies [][]string
-
 	json.Unmarshal([]byte(proxiesJSON), &proxies)
 
 	proxyMap := map[int]map[string]*Proxy{}
@@ -78,7 +76,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 
 	currentIndex := pp.CurrentProxyIndexes[priority]
 	pp.CurrentProxyIndexes[priority] = currentIndex + 1
-	if currentIndex >= len(pp.Proxies) {
+	if currentIndex >= len(pp.Proxies[priority]) {
 		pp.CurrentProxyIndexes[priority] = 1
 		currentIndex = 0
 	}
