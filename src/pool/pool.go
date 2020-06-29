@@ -4,9 +4,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/ratelimit"
 	"log"
 	"os"
+	"time"
 )
 
 type Limit struct {
@@ -15,7 +15,9 @@ type Limit struct {
 }
 
 type Proxy struct {
-	RateLimiter ratelimit.Limiter
+	counter  int
+	locked   bool
+	unlockTime time.Time
 }
 
 type ProxyPool struct {
@@ -54,7 +56,9 @@ func newProxySingleton() *ProxyPool {
 
 		for _, proxy := range proxyArr {
 			proxyMap[i][proxy] = &Proxy{
-				RateLimiter: ratelimit.New(4), // 240 / min
+				counter: 0, // 240 / min
+				locked: false,
+				unlockTime: time.Now(),
 			}
 		}
 	}
@@ -76,9 +80,34 @@ func GetProxyPoolInstance() *ProxyPool {
 }
 
 func (pp *ProxyPool) GetProxyByPriority(priority int) string {
-	log.Printf("Got GetProxyByPriority request with %d priority", priority)
 	if pp.Proxies == nil {
 		return ""
+	}
+	log.Printf("Got GetProxyByPriority request with %d priority", priority)
+
+	// check for unlocked high-priority proxies
+	existHighPriorityUnlockedProxy := false
+	for _, proxy := range pp.ExchangeProxyMap[0] {
+		if !proxy.locked || proxy.locked && proxy.unlockTime.Before(time.Now()) {
+			existHighPriorityUnlockedProxy = true
+		}
+	}
+
+	if !existHighPriorityUnlockedProxy {
+		priority = 1
+	}
+
+	// check for unlocked low-priority proxies
+	existLowPriorityUnlockedProxy := false
+	for _, proxy := range pp.ExchangeProxyMap[1] {
+		if !proxy.locked || (proxy.locked && proxy.unlockTime.Before(time.Now())) {
+			existLowPriorityUnlockedProxy = true
+		}
+	}
+
+	if !existLowPriorityUnlockedProxy {
+		println("go here")
+		time.Sleep(1 * time.Minute)
 	}
 
 	currentIndex := pp.CurrentProxyIndexes[priority]
@@ -89,10 +118,17 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 	}
 
 	currentProxy := pp.Proxies[priority][currentIndex]
-
-	// currentTime := time.Now().UnixNano()
 	currentRequests := pp.ExchangeProxyMap[priority][currentProxy]
-	_ = currentRequests.RateLimiter.Take()
 
-	return currentProxy
+	if currentRequests.counter >= 240 && currentRequests.locked && currentRequests.unlockTime.After(time.Now()) {
+		return pp.GetProxyByPriority(priority)
+	} else if currentRequests.counter >= 240 && !currentRequests.locked {
+		// we block proxy if more than 240 requests per minute were executed
+		currentRequests.locked = true
+		currentRequests.unlockTime = time.Now().Add(1 * time.Minute)
+		return pp.GetProxyByPriority(priority)
+	} else {
+		currentRequests.counter += 1
+		return currentProxy
+	}
 }

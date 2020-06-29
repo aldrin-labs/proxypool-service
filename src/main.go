@@ -9,7 +9,6 @@ import (
 	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
 	"log"
 	"strconv"
-	"time"
 )
 
 func GetProxy(ctx *fasthttp.RequestCtx) {
@@ -25,12 +24,14 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 }
 
 func TestProxy(ctx *fasthttp.RequestCtx) {
-	prev := time.Now()
-	proxyForTest := pool.GetProxyPoolInstance().Proxies[0][0]
-	for i := 0; i < 300; i++ {
-		now := pool.GetProxyPoolInstance().ExchangeProxyMap[0][proxyForTest].RateLimiter.Take()
-		fmt.Println(i, now.Sub(prev))
-		prev = now
+	priority, err := strconv.Atoi(string(ctx.QueryArgs().Peek("priority")))
+	if err != nil {
+		fmt.Println("error:", err)
+		priority = 1
+	}
+	pp := pool.GetProxyPoolInstance()
+	for i := 0; i < 3000; i++ {
+		pp.GetProxyByPriority(priority)
 	}
 }
 
