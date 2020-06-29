@@ -3,6 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"strconv"
+
 	"github.com/buaazp/fasthttprouter"
 	"github.com/joho/godotenv"
 	"github.com/valyala/fasthttp"
@@ -11,7 +14,6 @@ import (
 	"strconv"
 	"time"
 )
-
 
 func GetProxy(ctx *fasthttp.RequestCtx) {
 	ctx.SetContentType("application/json; charset=utf8")
@@ -54,6 +56,6 @@ func main() {
 	router.GET("/testProxy", TestProxy)
 	router.GET("/healthz", Healthz)
 
-	println("Listening on port :5901")
+	log.Print("Listening on port :5901")
 	log.Fatal(fasthttp.ListenAndServe(":5901", router.Handler))
 }
