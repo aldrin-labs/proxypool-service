@@ -106,7 +106,6 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 	}
 
 	if !existLowPriorityUnlockedProxy {
-		println("go here")
 		time.Sleep(1 * time.Minute)
 	}
 
