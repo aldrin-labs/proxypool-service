@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -18,6 +19,7 @@ type Proxy struct {
 	counter  int
 	locked   bool
 	unlockTime time.Time
+	mux sync.Mutex
 }
 
 type ProxyPool struct {
@@ -59,6 +61,7 @@ func newProxySingleton() *ProxyPool {
 				counter: 0, // 240 / min
 				locked: false,
 				unlockTime: time.Now(),
+				mux: sync.Mutex{},
 			}
 		}
 	}
@@ -118,6 +121,9 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 
 	currentProxy := pp.Proxies[priority][currentIndex]
 	currentRequests := pp.ExchangeProxyMap[priority][currentProxy]
+
+	currentRequests.mux.Lock()
+	defer currentRequests.mux.Unlock()
 
 	if currentRequests.counter >= 240 && currentRequests.locked && currentRequests.unlockTime.After(time.Now()) {
 		return pp.GetProxyByPriority(priority)
