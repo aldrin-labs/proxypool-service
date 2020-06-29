@@ -132,6 +132,11 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 		currentRequests.locked = true
 		currentRequests.unlockTime = time.Now().Add(1 * time.Minute)
 		return pp.GetProxyByPriority(priority)
+	} else if currentRequests.counter >= 240 && currentRequests.locked && currentRequests.unlockTime.Before(time.Now()) {
+		// if time went we unblock proxy
+		currentRequests.locked = false
+		currentRequests.counter = 0
+		return currentProxy
 	} else {
 		currentRequests.counter += 1
 		return currentProxy
