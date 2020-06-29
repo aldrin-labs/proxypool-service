@@ -36,7 +36,11 @@ func newProxySingleton() *ProxyPool {
 	}
 	var proxies [][]string
 	println("proxies", proxies)
-	json.Unmarshal([]byte(proxiesJSON), &proxies)
+	jsonErr := json.Unmarshal([]byte(proxiesJSON), &proxies)
+	if jsonErr != nil {
+		fmt.Println("json error:", jsonErr)
+		return nil
+	}
 	println("proxies", proxies)
 
 	proxyMap := map[int]map[string]*Proxy{}
