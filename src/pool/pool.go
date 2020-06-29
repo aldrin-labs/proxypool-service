@@ -43,13 +43,12 @@ func newProxySingleton() *ProxyPool {
 	proxyMap := map[int]map[string]*Proxy{}
 	currentProxyIndexes := map[int]int{}
 
-	// 0 for japan
-	// 1 for russia
+	// 0 - max priority (e.g. for tgrading), 1 - less priority
 
 	proxyMap[0] = map[string]*Proxy{}
 	currentProxyIndexes[0] = 0
 	proxyMap[1] = map[string]*Proxy{}
-	currentProxyIndexes[0] = 0
+	currentProxyIndexes[1] = 0
 
 	for i, proxyArr := range proxies {
 		for _, proxy := range proxyArr {
@@ -82,8 +81,6 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 	pp.CurrentProxyIndexes[priority] = currentIndex + 1
 	if currentIndex >= len(pp.Proxies) {
 		pp.CurrentProxyIndexes[priority] = 0
-	}
-	if currentIndex >= len(pp.Proxies) {
 		currentIndex = 0
 	}
 
