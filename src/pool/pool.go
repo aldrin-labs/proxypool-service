@@ -73,8 +73,7 @@ func GetProxyPoolInstance() *ProxyPool {
 
 func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 	log.Printf("Got GetProxyByPriority request with %d priority", priority)
-	println("len proxy", len(pp.Proxies))
-	if len(pp.Proxies) == 0 {
+	if pp.Proxies == nil {
 		return ""
 	}
 
