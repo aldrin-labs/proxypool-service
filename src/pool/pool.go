@@ -27,7 +27,9 @@ type ProxyPool struct {
 
 func newProxySingleton() *ProxyPool {
 	proxiesBASE64 := os.Getenv("PROXYLIST")
+	println("base 64", proxiesBASE64)
 	proxiesJSON, err := base64.StdEncoding.DecodeString(proxiesBASE64)
+	println("json", proxiesJSON)
 	if err != nil {
 		fmt.Println("error:", err)
 		return nil
@@ -73,8 +75,7 @@ func GetProxyPoolInstance() *ProxyPool {
 
 func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 	log.Printf("Got GetProxyByPriority request with %d priority", priority)
-	println("len proxy", len(pp.Proxies))
-	if len(pp.Proxies) == 0 {
+	if pp.Proxies == nil {
 		return ""
 	}
 
