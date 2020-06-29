@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-	"strconv"
 	"github.com/buaazp/fasthttprouter"
 	"github.com/joho/godotenv"
 	"github.com/valyala/fasthttp"
 	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
+	"log"
+	"strconv"
 	"time"
 )
 
