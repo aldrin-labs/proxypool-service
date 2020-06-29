@@ -80,7 +80,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 	currentIndex := pp.CurrentProxyIndexes[priority]
 	pp.CurrentProxyIndexes[priority] = currentIndex + 1
 	if currentIndex >= len(pp.Proxies) {
-		pp.CurrentProxyIndexes[priority] = 0
+		pp.CurrentProxyIndexes[priority] = 1
 		currentIndex = 0
 	}
 
