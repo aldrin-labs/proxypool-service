@@ -27,21 +27,17 @@ type ProxyPool struct {
 
 func newProxySingleton() *ProxyPool {
 	proxiesBASE64 := os.Getenv("PROXYLIST")
-	println("base 64", proxiesBASE64)
 	proxiesJSON, err := base64.StdEncoding.DecodeString(proxiesBASE64)
-	println("json", proxiesJSON)
 	if err != nil {
 		fmt.Println("error:", err)
 		return nil
 	}
 	var proxies [][]string
-	println("proxies", proxies)
 	jsonErr := json.Unmarshal([]byte(proxiesJSON), &proxies)
 	if jsonErr != nil {
 		fmt.Println("json error:", jsonErr)
 		return nil
 	}
-	println("proxies", proxies)
 
 	proxyMap := map[int]map[string]*Proxy{}
 	currentProxyIndexes := map[int]int{}
@@ -53,7 +49,6 @@ func newProxySingleton() *ProxyPool {
 	proxyMap[1] = map[string]*Proxy{}
 	currentProxyIndexes[1] = 0
 
-	println("proxies after all", proxies)
 	for i, proxyArr := range proxies {
 		log.Printf("Init %d proxies with %d priority...", len(proxyArr), i)
 
