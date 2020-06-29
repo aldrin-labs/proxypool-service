@@ -33,7 +33,11 @@ func newProxySingleton() *ProxyPool {
 		return nil
 	}
 	var proxies [][]string
-	json.Unmarshal([]byte(proxiesJSON), &proxies)
+	jsonErr := json.Unmarshal([]byte(proxiesJSON), &proxies)
+	if jsonErr != nil {
+		fmt.Println("json error:", jsonErr)
+		return nil
+	}
 
 	proxyMap := map[int]map[string]*Proxy{}
 	currentProxyIndexes := map[int]int{}
@@ -73,6 +77,9 @@ func GetProxyPoolInstance() *ProxyPool {
 
 func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 	log.Printf("Got GetProxyByPriority request with %d priority", priority)
+	if pp.Proxies == nil {
+		return ""
+	}
 
 	currentIndex := pp.CurrentProxyIndexes[priority]
 	pp.CurrentProxyIndexes[priority] = currentIndex + 1
