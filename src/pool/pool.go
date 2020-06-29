@@ -27,7 +27,9 @@ type ProxyPool struct {
 
 func newProxySingleton() *ProxyPool {
 	proxiesBASE64 := os.Getenv("PROXYLIST")
+	println("base 64", proxiesBASE64)
 	proxiesJSON, err := base64.StdEncoding.DecodeString(proxiesBASE64)
+	println("json", proxiesJSON)
 	if err != nil {
 		fmt.Println("error:", err)
 		return nil
