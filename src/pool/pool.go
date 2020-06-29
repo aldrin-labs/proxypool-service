@@ -37,7 +37,6 @@ func newProxySingleton() *ProxyPool {
 	var proxies [][] string
 
 	json.Unmarshal([]byte(proxiesJSON), &proxies)
-
 	// exchanges := [2]string{"binance", "bittrex"}
 
 	proxyMap := map[int]map[string]*Proxy{}
@@ -79,7 +78,7 @@ func GetProxyPoolInstance() *ProxyPool {
 func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 	currentIndex := pp.CurrentProxyIndexes[priority]
 	pp.CurrentProxyIndexes[priority] = currentIndex + 1
-	if currentIndex >= len(pp.Proxies) {
+	if currentIndex >= len(pp.Proxies[priority]) {
 		pp.CurrentProxyIndexes[priority] = 1
 		currentIndex = 0
 	}
