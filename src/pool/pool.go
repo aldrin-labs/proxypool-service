@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"os"
+	"sync"
 
 	"log"
 
@@ -19,6 +20,7 @@ type ProxyPool struct {
 	Proxies             [][]string
 	CurrentProxyIndexes map[int]int
 	ExchangeProxyMap    map[int]map[string]*Proxy
+	proxyIndexesMux     sync.Mutex
 }
 
 var proxySingleton *ProxyPool
@@ -53,6 +55,7 @@ func newProxySingleton() *ProxyPool {
 		Proxies:             proxies,
 		CurrentProxyIndexes: currentProxyIndexes,
 		ExchangeProxyMap:    proxyMap,
+		proxyIndexesMux:     sync.Mutex{},
 	}
 }
 
@@ -84,6 +87,8 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 		return ""
 	}
 
+	// TODO: maybe it's better to use sync.map here
+	pp.proxyIndexesMux.Lock()
 	currentIndex := pp.CurrentProxyIndexes[priority]
 	pp.CurrentProxyIndexes[priority] = currentIndex + 1
 	if currentIndex >= len(pp.Proxies[priority]) {
@@ -93,6 +98,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 
 	currentProxyURL := pp.Proxies[priority][currentIndex]
 	currentProxyRateLimiter := pp.ExchangeProxyMap[priority][currentProxyURL].RateLimiter
+	pp.proxyIndexesMux.Unlock()
 
 	if currentProxyRateLimiter.Allow() == false {
 		if priority == 0 {
