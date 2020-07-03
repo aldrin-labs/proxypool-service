@@ -4,9 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"go.uber.org/ratelimit"
 	"log"
 	"os"
+
+	"go.uber.org/ratelimit"
 )
 
 type Limit struct {
@@ -54,7 +55,7 @@ func newProxySingleton() *ProxyPool {
 
 		for _, proxy := range proxyArr {
 			proxyMap[i][proxy] = &Proxy{
-				RateLimiter: ratelimit.New(4), // 240 / min
+				RateLimiter: ratelimit.New(3), // 180 / min
 			}
 		}
 	}
