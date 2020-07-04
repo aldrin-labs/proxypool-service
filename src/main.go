@@ -20,6 +20,9 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 		fmt.Println("error:", err)
 		priority = 1
 	}
+
+	log.Printf("Got GetProxyByPriority request with %d priority from %s", priority, ctx.RemoteIP())
+
 	jsonStr, _ := json.Marshal(pool.GetProxyPoolInstance().GetProxyByPriority(priority))
 	_, _ = fmt.Fprint(ctx, string(jsonStr))
 }

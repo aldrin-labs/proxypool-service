@@ -82,7 +82,6 @@ func getProxiesFromENV(proxies *[][]string) {
 }
 
 func (pp *ProxyPool) GetProxyByPriority(priority int) string {
-	log.Printf("Got GetProxyByPriority request with %d priority", priority)
 	if pp.Proxies == nil {
 		return ""
 	}
