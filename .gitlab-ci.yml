@@ -75,7 +75,7 @@ test:
     - ln -s /go/src/gitlab.com/crypto_project /go/src/_/builds/crypto_project
     - go get -v -d ./...
   script:
-    - go test -v ./tests/smart_order/
+    - go test -v ./tests
   only:
     - branches
 
