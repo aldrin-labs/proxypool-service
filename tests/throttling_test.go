@@ -37,7 +37,7 @@ func TestProxyDelay(t *testing.T) {
 	duration := time.Since(start).Milliseconds()
 	expectedExecTime := ((float64(iterations)/float64(rateLimit))/float64(numberOfProxies) - (1.0 / float64(rateLimit))) * 1000
 
-	log.Printf("%d requests to %d proxies with rate limit %d req/s done in %d ms, expected ~ %f ms", iterations, numberOfProxies, rateLimit, duration, expectedExecTime)
+	log.Printf("Total %d requests to pool with %d proxies and rate limit %d req/s done in %d ms, expected ~ %f ms", iterations, numberOfProxies, rateLimit, duration, expectedExecTime)
 
 	if duration < int64(expectedExecTime) {
 		t.Error("Not enough time passed, something is wrong with rate limiter.")
@@ -47,6 +47,6 @@ func TestProxyDelay(t *testing.T) {
 func getProxyUsingWaitGroup(proxyPool *pool.ProxyPool, priority int, wg *sync.WaitGroup) {
 	proxyURL := proxyPool.GetProxyByPriority(priority)
 	_ = proxyURL
-	log.Println(proxyURL)
+	log.Printf("Got proxy URL: %s", proxyURL)
 	wg.Done()
 }
