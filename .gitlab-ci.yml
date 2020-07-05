@@ -65,10 +65,17 @@ build:
   only:
     - branches
 
-.test:
+test:
   stage: test
+  image: golang:1.13.4
+  allow_failure: true
+  before_script:
+    - mkdir -p /go/src/gitlab.com/crypto_project /go/src/_/builds
+    - cp -r $CI_PROJECT_DIR /go/src/gitlab.com/crypto_project/strategy
+    - ln -s /go/src/gitlab.com/crypto_project /go/src/_/builds/crypto_project
+    - go get -v -d ./...
   script:
-    - echo "skip:)"
+    - go test -v ./tests
   only:
     - branches
 
