@@ -10,7 +10,7 @@ import (
 	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
 )
 
-func TestProxyDelay(t *testing.T) {
+func TestProxyThrottlingOnSingleBurst(t *testing.T) {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -32,6 +32,8 @@ func TestProxyDelay(t *testing.T) {
 		// all request are done simultaneously to imitate heavy load
 		go getProxyUsingWaitGroup(proxyPool, proxyPriority, &wg)
 	}
+	requestDuration := time.Since(start).Milliseconds()
+	log.Printf("Proxy pool received %d requests in %d ms...", iterations, requestDuration)
 
 	wg.Wait()
 	duration := time.Since(start).Milliseconds()
