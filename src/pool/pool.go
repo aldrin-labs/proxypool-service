@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"sync"
 	"time"
 
@@ -139,12 +140,22 @@ func (pp *ProxyPool) GetTopPriorityProxy() string {
 
 func (pp *ProxyPool) GetStats() []string {
 	stats := []string{}
-	timeSinceStartup := time.Since(pp.StartupTime).Minutes()
+	timeSinceStartup := time.Since(pp.StartupTime).Seconds()
 
-	for _, proxy := range pp.ExchangeProxyMap[1] {
-		data := fmt.Sprintf("%s %v \n", proxy.Name, float64(proxy.Usages)/timeSinceStartup)
-		stats = append(stats, data)
+	for priority := range pp.ExchangeProxyMap {
+		for _, proxy := range pp.ExchangeProxyMap[priority] {
+			proxyIP := findIP(proxy.Name)
+			data := fmt.Sprintf("Proxy %s with priority %d got %f requests/sec on avg \n", proxyIP, priority, float64(proxy.Usages)/timeSinceStartup)
+			stats = append(stats, data)
+		}
 	}
 
 	return stats
+}
+
+func findIP(input string) string {
+	numBlock := "(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])"
+	regexPattern := numBlock + "\\." + numBlock + "\\." + numBlock + "\\." + numBlock
+	regEx := regexp.MustCompile(regexPattern)
+	return regEx.FindString(input)
 }
