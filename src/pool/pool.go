@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"log"
 
@@ -14,13 +16,18 @@ import (
 
 type Proxy struct {
 	RateLimiter *rate.Limiter
+	Usages      int
+	Name        string
 }
 
 type ProxyPool struct {
 	Proxies             [][]string
 	CurrentProxyIndexes map[int]int
 	ExchangeProxyMap    map[int]map[string]*Proxy
-	proxyIndexesMux     sync.Mutex
+
+	StartupTime     time.Time
+	proxyIndexesMux sync.Mutex
+	proxyStatsMux   sync.Mutex
 }
 
 var proxySingleton *ProxyPool
@@ -48,6 +55,8 @@ func newProxySingleton() *ProxyPool {
 		for _, proxy := range proxyArr {
 			proxyMap[i][proxy] = &Proxy{
 				RateLimiter: rate.NewLimiter(normalLimit, burst),
+				Usages:      0,
+				Name:        proxy,
 			}
 		}
 	}
@@ -57,6 +66,8 @@ func newProxySingleton() *ProxyPool {
 		CurrentProxyIndexes: currentProxyIndexes,
 		ExchangeProxyMap:    proxyMap,
 		proxyIndexesMux:     sync.Mutex{},
+		proxyStatsMux:       sync.Mutex{},
+		StartupTime:         time.Now(),
 	}
 }
 
@@ -97,7 +108,8 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 	}
 
 	currentProxyURL := pp.Proxies[priority][currentIndex]
-	currentProxyRateLimiter := pp.ExchangeProxyMap[priority][currentProxyURL].RateLimiter
+	currentProxy := pp.ExchangeProxyMap[priority][currentProxyURL]
+	currentProxyRateLimiter := currentProxy.RateLimiter
 	pp.proxyIndexesMux.Unlock()
 
 	if currentProxyRateLimiter.Allow() == false {
@@ -110,6 +122,10 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 		currentProxyRateLimiter.Wait(ctx)
 	}
 
+	pp.proxyStatsMux.Lock()
+	currentProxy.Usages++
+	pp.proxyStatsMux.Unlock()
+
 	return currentProxyURL
 }
 
@@ -119,4 +135,16 @@ func (pp *ProxyPool) GetLowPriorityProxy() string {
 
 func (pp *ProxyPool) GetTopPriorityProxy() string {
 	return pp.GetProxyByPriority(0)
+}
+
+func (pp *ProxyPool) GetStats() []string {
+	stats := []string{}
+	timeSinceStartup := time.Since(pp.StartupTime).Minutes()
+
+	for _, proxy := range pp.ExchangeProxyMap[1] {
+		data := fmt.Sprintf("%s %v \n", proxy.Name, float64(proxy.Usages)/timeSinceStartup)
+		stats = append(stats, data)
+	}
+
+	return stats
 }

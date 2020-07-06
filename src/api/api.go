@@ -38,7 +38,9 @@ func TestProxy(ctx *fasthttp.RequestCtx) {
 
 // Index is the index handler
 func Index(ctx *fasthttp.RequestCtx) {
-	fmt.Fprint(ctx, "Welcome!\n")
+	proxyPool := pool.GetProxyPoolInstance()
+	data := fmt.Sprintf("%v", proxyPool.GetStats())
+	fmt.Fprint(ctx, data)
 }
 
 func Healthz(ctx *fasthttp.RequestCtx) {
