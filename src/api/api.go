@@ -47,7 +47,7 @@ func Index(ctx *fasthttp.RequestCtx) {
 func Extempt(ctx *fasthttp.RequestCtx) {
 	println("call ex")
 	res := &struct {
-		Proxy string
+		Proxy string `json:"proxy" bson:"proxy"`
 	}{}
 	err := json.Unmarshal(ctx.PostBody(), res)
 
