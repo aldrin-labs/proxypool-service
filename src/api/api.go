@@ -3,12 +3,12 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-	"strconv"
-
 	"github.com/buaazp/fasthttprouter"
 	"github.com/valyala/fasthttp"
 	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
+	"log"
+	"strconv"
+	"time"
 )
 
 func GetProxy(ctx *fasthttp.RequestCtx) {
@@ -27,13 +27,10 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 }
 
 func TestProxy(ctx *fasthttp.RequestCtx) {
-	// prev := time.Now()
-	// proxyForTest := pool.GetProxyPoolInstance().Proxies[0][0]
-	// for i := 0; i < 300; i++ {
-	// 	now := pool.GetProxyPoolInstance().ExchangeProxyMap[0][proxyForTest].RateLimiter.Take()
-	// 	fmt.Println(i, now.Sub(prev))
-	// 	prev = now
-	// }
+	for i := 0; i < 5000; i++ {
+		time.Sleep(10 * time.Millisecond)
+		go pool.GetProxyPoolInstance().GetTopPriorityProxy()
+	}
 }
 
 // Index is the index handler
