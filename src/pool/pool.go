@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,10 +26,16 @@ type Proxy struct {
 	NeedResponses int
 }
 
+type ProxyResponse struct {
+	Proxy   string `json:"proxy"`
+	Counter int `json:"counter"`
+}
+
 type ProxyPool struct {
 	Proxies             [][]string
 	CurrentProxyIndexes map[int]int
 	ExchangeProxyMap    map[int]map[string]*Proxy
+	DebtorsMap          map[string]time.Time
 
 	StartupTime     time.Time
 	proxyIndexesMux sync.Mutex
@@ -73,6 +81,7 @@ func newProxySingleton() *ProxyPool {
 		Proxies:             proxies,
 		CurrentProxyIndexes: currentProxyIndexes,
 		ExchangeProxyMap:    proxyMap,
+		DebtorsMap:          map[string]time.Time{},
 		proxyIndexesMux:     sync.Mutex{},
 		proxyStatsMux:       sync.Mutex{},
 		StartupTime:         time.Now(),
@@ -82,6 +91,7 @@ func newProxySingleton() *ProxyPool {
 func GetProxyPoolInstance() *ProxyPool {
 	if proxySingleton == nil {
 		proxySingleton = newProxySingleton()
+		go proxySingleton.CheckProxyTimeout()
 	}
 	return proxySingleton
 }
@@ -100,9 +110,9 @@ func getProxiesFromENV(proxies *[][]string) {
 	}
 }
 
-func (pp *ProxyPool) GetProxyByPriority(priority int) string {
+func (pp *ProxyPool) GetProxyByPriority(priority int) ProxyResponse {
 	if pp.Proxies == nil {
-		return ""
+		return ProxyResponse{ Proxy: "", Counter: 0 }
 	}
 
 	// TODO: maybe it's better to use sync.map here
@@ -136,18 +146,23 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 	pp.proxyStatsMux.Lock()
 	currentProxy.Usages++
 	currentProxy.NeedResponses++
+	pp.DebtorsMap[currentProxyURL + "_" + strconv.Itoa(currentProxy.Usages)] = time.Now()
 	pp.proxyStatsMux.Unlock()
 
 	log.Print("return proxy url: ", currentProxyURL, " proxy, needResponses: ", currentProxy.NeedResponses)
-	return currentProxyURL
+	return ProxyResponse{
+		Proxy:   currentProxyURL,
+		Counter: currentProxy.Usages,
+	}
 }
 
-func (pp *ProxyPool) ExtemptProxy(url string) {
+func (pp *ProxyPool) ExtemptProxy(url string, counter int) {
 	pp.proxyStatsMux.Lock()
 	for priority, proxyArr := range pp.Proxies {
 		for _, proxy := range proxyArr {
 			if proxy == url && pp.ExchangeProxyMap[priority][proxy].NeedResponses > 0 {
 				pp.ExchangeProxyMap[priority][proxy].NeedResponses--
+				pp.DebtorsMap[proxy + "_" + strconv.Itoa(counter)] = time.Time{}
 				log.Print("ExtemptProxy url: ", url, "new needResponses: ", pp.ExchangeProxyMap[priority][proxy].NeedResponses)
 			}
 		}
@@ -155,11 +170,11 @@ func (pp *ProxyPool) ExtemptProxy(url string) {
 	pp.proxyStatsMux.Unlock()
 }
 
-func (pp *ProxyPool) GetLowPriorityProxy() string {
+func (pp *ProxyPool) GetLowPriorityProxy() ProxyResponse {
 	return pp.GetProxyByPriority(1)
 }
 
-func (pp *ProxyPool) GetTopPriorityProxy() string {
+func (pp *ProxyPool) GetTopPriorityProxy() ProxyResponse {
 	return pp.GetProxyByPriority(0)
 }
 
@@ -176,6 +191,21 @@ func (pp *ProxyPool) GetStats() []string {
 	}
 
 	return stats
+}
+
+func (pp *ProxyPool) CheckProxyTimeout() {
+	// timeout func here
+	for {
+		time.Sleep(90 * time.Second)
+		pp.proxyStatsMux.Lock()
+		for k, v := range pp.DebtorsMap {
+			if time.Since(v).Seconds() >= 90 {
+				arr := strings.Split(k, "_")[0]
+				pp.ExtemptProxy(string(arr[0]), int(arr[1]))
+			}
+		}
+		pp.proxyStatsMux.Lock()
+	}
 }
 
 func findIP(input string) string {

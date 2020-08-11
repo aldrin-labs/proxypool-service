@@ -28,12 +28,11 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 
 func TestProxy(ctx *fasthttp.RequestCtx) {
 	for i := 0; i < 300; i++ {
-		go func() {
-			url := pool.GetProxyPoolInstance().GetTopPriorityProxy()
+		go func(i int) {
+			proxyRes := pool.GetProxyPoolInstance().GetTopPriorityProxy()
 			time.Sleep(10 * time.Millisecond)
-			pool.GetProxyPoolInstance().ExtemptProxy(url)
-		}()
-
+			pool.GetProxyPoolInstance().ExtemptProxy(proxyRes.Proxy, i)
+		}(i)
 	}
 }
 
@@ -48,6 +47,7 @@ func Extempt(ctx *fasthttp.RequestCtx) {
 	println("call ex")
 	res := &struct {
 		Proxy string `json:"proxy"`
+		Counter int  `json:"counter"`
 	}{}
 	err := json.Unmarshal(ctx.PostBody(), res)
 
@@ -55,7 +55,7 @@ func Extempt(ctx *fasthttp.RequestCtx) {
 		log.Print("err while Extempt", err.Error())
 	}
 
-	pool.GetProxyPoolInstance().ExtemptProxy(res.Proxy)
+	pool.GetProxyPoolInstance().ExtemptProxy(res.Proxy, res.Counter)
 }
 
 func Healthz(ctx *fasthttp.RequestCtx) {
