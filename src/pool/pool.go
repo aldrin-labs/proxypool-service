@@ -146,7 +146,7 @@ func (pp *ProxyPool) ExtemptProxy(url string) {
 	pp.proxyStatsMux.Lock()
 	for priority, proxyArr := range pp.Proxies {
 		for _, proxy := range proxyArr {
-			if proxy == url {
+			if proxy == url && pp.ExchangeProxyMap[priority][proxy].NeedResponses > 0 {
 				pp.ExchangeProxyMap[priority][proxy].NeedResponses--
 				log.Print("ExtemptProxy url: ", url, "new needResponses: ", pp.ExchangeProxyMap[priority][proxy].NeedResponses)
 			}

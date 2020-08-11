@@ -44,6 +44,20 @@ func Index(ctx *fasthttp.RequestCtx) {
 	fmt.Fprint(ctx, data)
 }
 
+func Extempt(ctx *fasthttp.RequestCtx) {
+	println("call ex")
+	res := &struct {
+		Proxy string
+	}{}
+	err := json.Unmarshal(ctx.PostBody(), res)
+
+	if err != nil {
+		log.Print("err while Extempt", err.Error())
+	}
+
+	pool.GetProxyPoolInstance().ExtemptProxy(res.Proxy)
+}
+
 func Healthz(ctx *fasthttp.RequestCtx) {
 	fmt.Fprint(ctx, "alive!\n")
 }
@@ -55,6 +69,7 @@ func RunServer() {
 	router.GET("/getProxy", GetProxy)
 	router.GET("/testProxy", TestProxy)
 	router.GET("/healthz", Healthz)
+	router.POST("/extempt", Extempt)
 
 	log.Print("Listening on port :5901")
 	log.Fatal(fasthttp.ListenAndServe(":5901", router.Handler))
