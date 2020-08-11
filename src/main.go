@@ -6,6 +6,6 @@ import (
 )
 
 func main() {
-	godotenv.Load("../.env")
+	godotenv.Load()
 	api.RunServer()
 }
