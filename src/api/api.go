@@ -27,9 +27,13 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 }
 
 func TestProxy(ctx *fasthttp.RequestCtx) {
-	for i := 0; i < 5000; i++ {
-		time.Sleep(10 * time.Millisecond)
-		go pool.GetProxyPoolInstance().GetTopPriorityProxy()
+	for i := 0; i < 300; i++ {
+		go func() {
+			url := pool.GetProxyPoolInstance().GetTopPriorityProxy()
+			time.Sleep(10 * time.Millisecond)
+			pool.GetProxyPoolInstance().ExtemptProxy(url)
+		}()
+
 	}
 }
 

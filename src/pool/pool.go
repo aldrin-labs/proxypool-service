@@ -19,6 +19,9 @@ type Proxy struct {
 	RateLimiter *rate.Limiter
 	Usages      int
 	Name        string
+	Locked      bool
+	Limit       int
+	NeedResponses int
 }
 
 type ProxyPool struct {
@@ -46,7 +49,8 @@ func newProxySingleton() *ProxyPool {
 	proxyMap[1] = map[string]*Proxy{}
 	currentProxyIndexes[1] = 0
 
-	normalLimit := rate.Limit(1) // 180 / min
+	normalLimit := 3 // 180 / min
+	normalRateLimit := rate.Limit(normalLimit) // 180 / min
 	// how much requests can be run simultaneously if there were no throttling when they were received
 	burst := 1
 
@@ -55,8 +59,11 @@ func newProxySingleton() *ProxyPool {
 
 		for _, proxy := range proxyArr {
 			proxyMap[i][proxy] = &Proxy{
-				RateLimiter: rate.NewLimiter(normalLimit, burst),
+				RateLimiter: rate.NewLimiter(normalRateLimit, burst),
 				Usages:      0,
+				Limit:       normalLimit,
+				Locked:      false,
+				NeedResponses: 0,
 				Name:        proxy,
 			}
 		}
@@ -112,7 +119,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 	currentProxyRateLimiter := currentProxy.RateLimiter
 	pp.proxyIndexesMux.Unlock()
 
-	if currentProxyRateLimiter.Allow() == false {
+	if currentProxy.NeedResponses >= currentProxy.Limit  {
 		if priority == 0 {
 			log.Print("Top priority proxy is blocked. Returning low priority proxy.")
 			return pp.GetLowPriorityProxy()
@@ -123,13 +130,29 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 		if err != nil {
 			log.Print("Error proxy wait", err.Error())
 		}
+		return pp.GetTopPriorityProxy()
 	}
 
 	pp.proxyStatsMux.Lock()
 	currentProxy.Usages++
+	currentProxy.NeedResponses++
 	pp.proxyStatsMux.Unlock()
 
+	log.Print("return proxy url: ", currentProxyURL, " proxy, needResponses: ", currentProxy.NeedResponses)
 	return currentProxyURL
+}
+
+func (pp *ProxyPool) ExtemptProxy(url string) {
+	pp.proxyStatsMux.Lock()
+	for priority, proxyArr := range pp.Proxies {
+		for _, proxy := range proxyArr {
+			if proxy == url {
+				pp.ExchangeProxyMap[priority][proxy].NeedResponses--
+				log.Print("ExtemptProxy url: ", url, "new needResponses: ", pp.ExchangeProxyMap[priority][proxy].NeedResponses)
+			}
+		}
+	}
+	pp.proxyStatsMux.Unlock()
 }
 
 func (pp *ProxyPool) GetLowPriorityProxy() string {
