@@ -46,7 +46,7 @@ func newProxySingleton() *ProxyPool {
 	proxyMap[1] = map[string]*Proxy{}
 	currentProxyIndexes[1] = 0
 
-	normalLimit := rate.Limit(3) // 180 / min
+	normalLimit := rate.Limit(1) // 180 / min
 	// how much requests can be run simultaneously if there were no throttling when they were received
 	burst := 1
 
@@ -86,7 +86,6 @@ func getProxiesFromENV(proxies *[][]string) {
 		log.Print("error:", err)
 		return
 	}
-
 	jsonErr := json.Unmarshal([]byte(proxiesJSON), proxies)
 	if jsonErr != nil {
 		log.Print("json error:", jsonErr)
@@ -120,7 +119,10 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) string {
 		}
 
 		ctx := context.Background()
-		currentProxyRateLimiter.Wait(ctx)
+		err := currentProxyRateLimiter.Wait(ctx)
+		if err != nil {
+			log.Print("Error proxy wait", err.Error())
+		}
 	}
 
 	pp.proxyStatsMux.Lock()
