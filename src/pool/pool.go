@@ -158,7 +158,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) ProxyResponse {
 	}
 }
 
-func (pp *ProxyPool) ExtemptProxy(url string, counter int) {
+func (pp *ProxyPool) ExemptProxy(url string, counter int) {
 	println("exempt url counter", url, counter)
 	pp.proxyStatsMux.Lock()
 	for priority, proxyArr := range pp.Proxies {
@@ -166,7 +166,7 @@ func (pp *ProxyPool) ExtemptProxy(url string, counter int) {
 			if proxy == url && pp.ExchangeProxyMap[priority][proxy].NeedResponses > 0 {
 				pp.ExchangeProxyMap[priority][proxy].NeedResponses--
 				pp.DebtorsMap[proxy + "_" + strconv.Itoa(counter)] = time.Time{}
-				log.Print("ExtemptProxy url: ", url, "new needResponses: ", pp.ExchangeProxyMap[priority][proxy].NeedResponses)
+				log.Print("ExemptProxy url: ", url, "new needResponses: ", pp.ExchangeProxyMap[priority][proxy].NeedResponses)
 			}
 		}
 	}
@@ -204,7 +204,7 @@ func (pp *ProxyPool) CheckProxyTimeout() {
 			if time.Since(v).Seconds() >= float64(pp.Timeout) && !v.IsZero() {
 				arr := strings.Split(k, "_")
 				counter, _ := strconv.Atoi(arr[1])
-				pp.ExtemptProxy(arr[0], counter)
+				pp.ExemptProxy(arr[0], counter)
 			}
 		}
 	}
