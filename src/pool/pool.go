@@ -38,6 +38,7 @@ type ProxyPool struct {
 	DebtorsMap          map[string]time.Time
 
 	StartupTime     time.Time
+	Timeout         int
 	proxyIndexesMux sync.Mutex
 	proxyStatsMux   sync.Mutex
 }
@@ -85,6 +86,7 @@ func newProxySingleton() *ProxyPool {
 		proxyIndexesMux:     sync.Mutex{},
 		proxyStatsMux:       sync.Mutex{},
 		StartupTime:         time.Now(),
+		Timeout:             30,
 	}
 }
 
@@ -197,9 +199,9 @@ func (pp *ProxyPool) GetStats() []string {
 func (pp *ProxyPool) CheckProxyTimeout() {
 	// timeout func here
 	for {
-		time.Sleep(90 * time.Second)
+		time.Sleep(time.Duration(pp.Timeout) * time.Second)
 		for k, v := range pp.DebtorsMap {
-			if time.Since(v).Seconds() >= 90 && !v.IsZero() {
+			if time.Since(v).Seconds() >= float64(pp.Timeout) && !v.IsZero() {
 				arr := strings.Split(k, "_")
 				counter, _ := strconv.Atoi(arr[1])
 				pp.ExtemptProxy(arr[0], counter)
