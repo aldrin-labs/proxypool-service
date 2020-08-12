@@ -27,9 +27,12 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 }
 
 func TestProxy(ctx *fasthttp.RequestCtx) {
-	for i := 0; i < 5000; i++ {
-		time.Sleep(10 * time.Millisecond)
-		go pool.GetProxyPoolInstance().GetTopPriorityProxy()
+	for i := 0; i < 300; i++ {
+		go func(i int) {
+			proxyRes := pool.GetProxyPoolInstance().GetTopPriorityProxy()
+			time.Sleep(10 * time.Millisecond)
+			pool.GetProxyPoolInstance().ExemptProxy(proxyRes.Proxy, i)
+		}(i)
 	}
 }
 
@@ -38,6 +41,21 @@ func Index(ctx *fasthttp.RequestCtx) {
 	proxyPool := pool.GetProxyPoolInstance()
 	data := fmt.Sprintf("%v", proxyPool.GetStats())
 	fmt.Fprint(ctx, data)
+}
+
+func Exempt(ctx *fasthttp.RequestCtx) {
+	println("call ex")
+	res := &struct {
+		Proxy string `json:"proxy"`
+		Counter int  `json:"counter"`
+	}{}
+	err := json.Unmarshal(ctx.PostBody(), res)
+
+	if err != nil {
+		log.Print("err while Exempt", err.Error())
+	}
+
+	pool.GetProxyPoolInstance().ExemptProxy(res.Proxy, res.Counter)
 }
 
 func Healthz(ctx *fasthttp.RequestCtx) {
@@ -51,6 +69,7 @@ func RunServer() {
 	router.GET("/getProxy", GetProxy)
 	router.GET("/testProxy", TestProxy)
 	router.GET("/healthz", Healthz)
+	router.POST("/exempt", Exempt)
 
 	log.Print("Listening on port :5901")
 	log.Fatal(fasthttp.ListenAndServe(":5901", router.Handler))
