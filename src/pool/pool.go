@@ -18,17 +18,17 @@ import (
 )
 
 type Proxy struct {
-	RateLimiter *rate.Limiter
-	Usages      int
-	Name        string
-	Locked      bool
-	Limit       int
+	RateLimiter   *rate.Limiter
+	Usages        int
+	Name          string
+	Locked        bool
+	Limit         int
 	NeedResponses int
 }
 
 type ProxyResponse struct {
 	Proxy   string `json:"proxy"`
-	Counter int `json:"counter"`
+	Counter int    `json:"counter"`
 }
 
 type ProxyPool struct {
@@ -58,8 +58,8 @@ func newProxySingleton() *ProxyPool {
 	proxyMap[1] = map[string]*Proxy{}
 	currentProxyIndexes[1] = 0
 
-	normalLimit := 3 // 180 / min
-	normalRateLimit := rate.Limit(normalLimit) // 180 / min
+	normalLimit := 1                           // 60 / min
+	normalRateLimit := rate.Limit(normalLimit) // 60 / min
 	// how much requests can be run simultaneously if there were no throttling when they were received
 	burst := 1
 
@@ -68,12 +68,12 @@ func newProxySingleton() *ProxyPool {
 
 		for _, proxy := range proxyArr {
 			proxyMap[i][proxy] = &Proxy{
-				RateLimiter: rate.NewLimiter(normalRateLimit, burst),
-				Usages:      0,
-				Limit:       normalLimit,
-				Locked:      false,
+				RateLimiter:   rate.NewLimiter(normalRateLimit, burst),
+				Usages:        0,
+				Limit:         normalLimit,
+				Locked:        false,
 				NeedResponses: 0,
-				Name:        proxy,
+				Name:          proxy,
 			}
 		}
 	}
@@ -116,7 +116,7 @@ func getProxiesFromENV(proxies *[][]string) {
 
 func (pp *ProxyPool) GetProxyByPriority(priority int) ProxyResponse {
 	if pp.Proxies == nil {
-		return ProxyResponse{ Proxy: "", Counter: 0 }
+		return ProxyResponse{Proxy: "", Counter: 0}
 	}
 
 	// TODO: maybe it's better to use sync.map here
@@ -133,7 +133,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) ProxyResponse {
 	currentProxyRateLimiter := currentProxy.RateLimiter
 	pp.proxyIndexesMux.Unlock()
 
-	if currentProxy.NeedResponses >= currentProxy.Limit  {
+	if currentProxy.NeedResponses >= currentProxy.Limit {
 		if priority == 0 {
 			log.Print("Top priority proxy is blocked. Returning low priority proxy.")
 			return pp.GetLowPriorityProxy()
@@ -150,7 +150,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) ProxyResponse {
 	pp.proxyStatsMux.Lock()
 	currentProxy.Usages++
 	currentProxy.NeedResponses++
-	pp.DebtorsMap[currentProxyURL + "_" + strconv.Itoa(currentProxy.Usages)] = time.Now()
+	pp.DebtorsMap[currentProxyURL+"_"+strconv.Itoa(currentProxy.Usages)] = time.Now()
 	pp.proxyStatsMux.Unlock()
 
 	log.Print("return proxy url: ", currentProxyURL, " proxy, needResponses: ", currentProxy.NeedResponses)
@@ -167,7 +167,7 @@ func (pp *ProxyPool) ExemptProxy(url string, counter int) {
 		for _, proxy := range proxyArr {
 			if proxy == url && pp.ExchangeProxyMap[priority][proxy].NeedResponses > 0 {
 				pp.ExchangeProxyMap[priority][proxy].NeedResponses--
-				pp.DebtorsMap[proxy + "_" + strconv.Itoa(counter)] = time.Time{}
+				pp.DebtorsMap[proxy+"_"+strconv.Itoa(counter)] = time.Time{}
 				log.Print("ExemptProxy url: ", url, "new needResponses: ", pp.ExchangeProxyMap[priority][proxy].NeedResponses)
 			}
 		}
