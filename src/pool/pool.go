@@ -157,6 +157,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) ProxyResponse {
 }
 
 func (pp *ProxyPool) ExtemptProxy(url string, counter int) {
+	println("exempt url counter", url, counter)
 	pp.proxyStatsMux.Lock()
 	for priority, proxyArr := range pp.Proxies {
 		for _, proxy := range proxyArr {
@@ -197,14 +198,13 @@ func (pp *ProxyPool) CheckProxyTimeout() {
 	// timeout func here
 	for {
 		time.Sleep(90 * time.Second)
-		pp.proxyStatsMux.Lock()
 		for k, v := range pp.DebtorsMap {
-			if time.Since(v).Seconds() >= 90 {
-				arr := strings.Split(k, "_")[0]
-				pp.ExtemptProxy(string(arr[0]), int(arr[1]))
+			if time.Since(v).Seconds() >= 90 && !v.IsZero() {
+				arr := strings.Split(k, "_")
+				counter, _ := strconv.Atoi(arr[1])
+				pp.ExtemptProxy(arr[0], counter)
 			}
 		}
-		pp.proxyStatsMux.Lock()
 	}
 }
 
