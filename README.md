@@ -25,3 +25,4 @@ which will build an executable to your $gopath/bin
 ## Tests
 
 > go test ./tests
+> go test -v ./tests/http_test.go

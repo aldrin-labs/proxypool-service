@@ -58,10 +58,10 @@ func newProxySingleton() *ProxyPool {
 	proxyMap[1] = map[string]*Proxy{}
 	currentProxyIndexes[1] = 0
 
-	normalLimit := 1000.0 / 60.0 // 1000 / min
+	normalLimit := 500.0 / 60.0 // 500 / min
 	normalRateLimit := rate.Limit(normalLimit)
 	// how much requests can be run simultaneously if there were no throttling when they were received
-	burst := 101
+	burst := 110
 
 	for i, proxyArr := range proxies {
 		log.Printf("Init %d proxies with %d priority...", len(proxyArr), i)
