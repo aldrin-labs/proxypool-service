@@ -2,6 +2,8 @@ package tests
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -25,9 +27,10 @@ func TestHTTPRequestThrottling(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	threads := 30
-	requestsByThread := 10
+	requestsByThread := 2
 	totalRequests := threads * requestsByThread
 	proxyPriority := 1
+	requestWeight := 10
 	rateLimit := 3
 	numberOfProxies := 2 // based on tests/.env file
 
@@ -38,12 +41,13 @@ func TestHTTPRequestThrottling(t *testing.T) {
 	start := time.Now()
 	for i := 0; i < threads; i++ {
 		// all request are done simultaneously from multiple threads to imitate heavy load
-		go makeProxyRequests(proxyPriority, requestsByThread, &wg)
+		go makeProxyRequests(proxyPriority, requestWeight, requestsByThread, &wg)
 	}
 	requestDuration := time.Since(start).Milliseconds()
 	log.Printf("Test started %d threads in %d ms...", threads, requestDuration)
 
 	wg.Wait()
+
 	duration := time.Since(start).Milliseconds()
 	expectedExecTime := ((float64(totalRequests)/float64(rateLimit))/float64(numberOfProxies) - (1.0 / float64(rateLimit))) * 1000
 
@@ -54,16 +58,55 @@ func TestHTTPRequestThrottling(t *testing.T) {
 	}
 }
 
-func makeProxyRequests(priority int, numberOfRequests int, wg *sync.WaitGroup) {
+func makeProxyRequests(priority int, weight int, numberOfRequests int, wg *sync.WaitGroup) {
 	for i := 0; i < numberOfRequests; i++ {
-		proxyURL := makeHTTPRequest("http://localhost:5901/getProxy?priority=1")
-		log.Printf("Got proxy URL: %s", proxyURL)
+		proxyPoolURL := fmt.Sprintf("http://localhost:5901/getProxy?priority=%d&weight=%d", priority, weight)
+		proxyDataInterface := makeHTTPRequest(proxyPoolURL)
+		proxyDataString := fmt.Sprintf("%s", proxyDataInterface)
+		// log.Printf("Got proxy string: %s", proxyDataString)
+
+		proxyData := &struct {
+			Proxy   string `json:"proxy"`
+			Counter int    `json:"counter"`
+		}{}
+
+		json.Unmarshal([]byte(proxyDataString), proxyData)
+		// log.Printf("Got proxy data: %v", proxyData.Proxy)
+
+		// send exempt request
+		proxyPoolExemptURL := "http://localhost:5901/exempt"
+		log.Printf("Making request to: %s", proxyPoolExemptURL)
+		makeHTTPPostRequest(proxyPoolExemptURL, proxyData.Proxy, proxyData.Counter)
+
 		wg.Done()
 	}
 }
 
 func makeHTTPRequest(url string) interface{} {
 	req, err := http.NewRequest("GET", url, bytes.NewBuffer([]byte{}))
+	if err != nil {
+		log.Println("Request error", err)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Request error", err)
+	}
+
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	return body
+}
+
+func makeHTTPPostRequest(requrl string, proxy string, counter int) interface{} {
+	d := fmt.Sprintf("{\"proxy\":\"%s\",\"counter\":\"%d\"}", proxy, counter)
+	data := []byte(d)
+	r := bytes.NewReader(data)
+
+	req, err := http.NewRequest("POST", requrl, r) //strings.NewReader(data.Encode())
 	if err != nil {
 		log.Println("Request error", err)
 	}

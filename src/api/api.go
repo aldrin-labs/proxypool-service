@@ -54,6 +54,8 @@ func Exempt(ctx *fasthttp.RequestCtx) {
 	}{}
 	err := json.Unmarshal(ctx.PostBody(), res)
 
+	// fmt.Printf("%s", ctx.PostBody())
+
 	if err != nil {
 		log.Print("err while Exempt", err.Error())
 	}
