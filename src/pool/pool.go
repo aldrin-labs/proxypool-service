@@ -22,7 +22,7 @@ type Proxy struct {
 	Usages        int
 	Name          string
 	Locked        bool
-	Limit         int
+	Limit         float64
 	NeedResponses int
 }
 
@@ -58,7 +58,7 @@ func newProxySingleton() *ProxyPool {
 	proxyMap[1] = map[string]*Proxy{}
 	currentProxyIndexes[1] = 0
 
-	normalLimit := 1                           // 60 / min
+	normalLimit := 0.33                           // 60 / min
 	normalRateLimit := rate.Limit(normalLimit) // 60 / min
 	// how much requests can be run simultaneously if there were no throttling when they were received
 	burst := 1
@@ -86,7 +86,7 @@ func newProxySingleton() *ProxyPool {
 		proxyIndexesMux:     sync.Mutex{},
 		proxyStatsMux:       sync.Mutex{},
 		StartupTime:         time.Now(),
-		Timeout:             30,
+		Timeout:             90,
 	}
 }
 
@@ -133,7 +133,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) ProxyResponse {
 	currentProxyRateLimiter := currentProxy.RateLimiter
 	pp.proxyIndexesMux.Unlock()
 
-	if currentProxy.NeedResponses >= currentProxy.Limit {
+	if float64(currentProxy.NeedResponses) >= currentProxy.Limit {
 		if priority == 0 {
 			log.Print("Top priority proxy is blocked. Returning low priority proxy.")
 			return pp.GetLowPriorityProxy()
@@ -201,7 +201,7 @@ func (pp *ProxyPool) GetStats() []string {
 func (pp *ProxyPool) CheckProxyTimeout() {
 	// timeout func here
 	for {
-		time.Sleep(time.Duration(pp.Timeout) * time.Second)
+		time.Sleep(30 * time.Second)
 		for k, v := range pp.DebtorsMap {
 			if time.Since(v).Seconds() >= float64(pp.Timeout) && !v.IsZero() {
 				arr := strings.Split(k, "_")
