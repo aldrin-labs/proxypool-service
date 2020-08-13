@@ -61,7 +61,7 @@ func newProxySingleton() *ProxyPool {
 	normalLimit := 1000.0 / 60.0 // 1000 / min
 	normalRateLimit := rate.Limit(normalLimit)
 	// how much requests can be run simultaneously if there were no throttling when they were received
-	burst := 1
+	burst := 200
 
 	for i, proxyArr := range proxies {
 		log.Printf("Init %d proxies with %d priority...", len(proxyArr), i)
