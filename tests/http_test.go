@@ -27,7 +27,7 @@ func TestHTTPRequestThrottling(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	threads := 30
-	requestsByThread := 2
+	requestsByThread := 10
 	totalRequests := threads * requestsByThread
 	proxyPriority := 1
 	requestWeight := 10
@@ -102,7 +102,7 @@ func makeHTTPRequest(url string) interface{} {
 }
 
 func makeHTTPPostRequest(requrl string, proxy string, counter int) interface{} {
-	d := fmt.Sprintf("{\"proxy\":\"%s\",\"counter\":\"%d\"}", proxy, counter)
+	d := fmt.Sprintf("{\"proxy\":\"%s\",\"counter\":%d}", proxy, counter)
 	data := []byte(d)
 	r := bytes.NewReader(data)
 
