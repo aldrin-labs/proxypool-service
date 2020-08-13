@@ -26,8 +26,8 @@ func TestHTTPRequestThrottling(t *testing.T) {
 	// waiting for api server to go up
 	time.Sleep(1 * time.Second)
 
-	threads := 30
-	requestsByThread := 10
+	threads := 10
+	requestsByThread := 5
 	totalRequests := threads * requestsByThread
 	proxyPriority := 1
 	requestWeight := 10
