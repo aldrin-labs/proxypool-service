@@ -3,33 +3,36 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/buaazp/fasthttprouter"
-	"github.com/valyala/fasthttp"
-	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
 	"log"
 	"strconv"
 	"time"
+
+	"github.com/buaazp/fasthttprouter"
+	"github.com/valyala/fasthttp"
+	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
 )
 
 func GetProxy(ctx *fasthttp.RequestCtx) {
 	ctx.SetContentType("application/json; charset=utf8")
 
 	priority, err := strconv.Atoi(string(ctx.QueryArgs().Peek("priority")))
+	weight, err := strconv.Atoi(string(ctx.QueryArgs().Peek("weight")))
 	if err != nil {
 		fmt.Println("error:", err)
 		priority = 1
 	}
 
-	log.Printf("Got GetProxyByPriority request with %d priority from %s", priority, ctx.RemoteIP())
+	log.Printf("Got GetProxyByPriority request with %d priority and %d weight from %s", priority, weight, ctx.RemoteIP())
 
-	jsonStr, _ := json.Marshal(pool.GetProxyPoolInstance().GetProxyByPriority(priority))
+	jsonStr, _ := json.Marshal(pool.GetProxyPoolInstance().GetProxyByPriority(priority, weight))
 	_, _ = fmt.Fprint(ctx, string(jsonStr))
 }
 
 func TestProxy(ctx *fasthttp.RequestCtx) {
+	weight, _ := strconv.Atoi(string(ctx.QueryArgs().Peek("weight")))
 	for i := 0; i < 300; i++ {
 		go func(i int) {
-			proxyRes := pool.GetProxyPoolInstance().GetTopPriorityProxy()
+			proxyRes := pool.GetProxyPoolInstance().GetTopPriorityProxy(weight)
 			time.Sleep(10 * time.Millisecond)
 			pool.GetProxyPoolInstance().ExemptProxy(proxyRes.Proxy, i)
 		}(i)
@@ -46,10 +49,12 @@ func Index(ctx *fasthttp.RequestCtx) {
 func Exempt(ctx *fasthttp.RequestCtx) {
 	println("call ex")
 	res := &struct {
-		Proxy string `json:"proxy"`
-		Counter int  `json:"counter"`
+		Proxy   string `json:"proxy"`
+		Counter int    `json:"counter"`
 	}{}
 	err := json.Unmarshal(ctx.PostBody(), res)
+
+	// fmt.Printf("%s", ctx.PostBody())
 
 	if err != nil {
 		log.Print("err while Exempt", err.Error())

@@ -1,8 +1,8 @@
-# core/signal_service
+# core/proxypool_service
 
 ## Description
 
-Notification service for user-defined events.
+Proxy pool
 
 ## Local deployment and building
 
@@ -21,3 +21,7 @@ in the project's root, which will build an executable right to the place where y
 `go install`
 
 which will build an executable to your $gopath/bin
+
+## Tests
+
+> go test ./tests

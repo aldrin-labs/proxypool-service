@@ -58,10 +58,10 @@ func newProxySingleton() *ProxyPool {
 	proxyMap[1] = map[string]*Proxy{}
 	currentProxyIndexes[1] = 0
 
-	normalLimit := 0.33                           // 60 / min
-	normalRateLimit := rate.Limit(normalLimit) // 60 / min
+	normalLimit := 1000.0 / 60.0 // 1000 / min
+	normalRateLimit := rate.Limit(normalLimit)
 	// how much requests can be run simultaneously if there were no throttling when they were received
-	burst := 1
+	burst := 101
 
 	for i, proxyArr := range proxies {
 		log.Printf("Init %d proxies with %d priority...", len(proxyArr), i)
@@ -114,7 +114,7 @@ func getProxiesFromENV(proxies *[][]string) {
 	}
 }
 
-func (pp *ProxyPool) GetProxyByPriority(priority int) ProxyResponse {
+func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse {
 	if pp.Proxies == nil {
 		return ProxyResponse{Proxy: "", Counter: 0}
 	}
@@ -133,19 +133,29 @@ func (pp *ProxyPool) GetProxyByPriority(priority int) ProxyResponse {
 	currentProxyRateLimiter := currentProxy.RateLimiter
 	pp.proxyIndexesMux.Unlock()
 
-	if float64(currentProxy.NeedResponses) >= currentProxy.Limit {
+	if currentProxyRateLimiter.AllowN(time.Now(), weight) == false {
 		if priority == 0 {
 			log.Print("Top priority proxy is blocked. Returning low priority proxy.")
-			return pp.GetLowPriorityProxy()
+			return pp.GetLowPriorityProxy(weight)
 		}
 
 		ctx := context.Background()
-		err := currentProxyRateLimiter.Wait(ctx)
-		if err != nil {
-			log.Print("Error proxy wait", err.Error())
-		}
-		return pp.GetTopPriorityProxy()
+		currentProxyRateLimiter.WaitN(ctx, weight)
 	}
+
+	// // if float64(currentProxy.NeedResponses) >= currentProxy.Limit {
+	// if priority == 0 {
+	// 	log.Print("Top priority proxy is blocked. Returning low priority proxy.")
+	// 	return pp.GetLowPriorityProxy(weight)
+	// }
+
+	// ctx := context.Background()
+	// err := currentProxyRateLimiter.WaitN(ctx, weight)
+	// if err != nil {
+	// 	log.Print("Error proxy wait", err.Error())
+	// }
+	// return pp.GetTopPriorityProxy(weight)
+	// // }
 
 	pp.proxyStatsMux.Lock()
 	currentProxy.Usages++
@@ -175,12 +185,12 @@ func (pp *ProxyPool) ExemptProxy(url string, counter int) {
 	pp.proxyStatsMux.Unlock()
 }
 
-func (pp *ProxyPool) GetLowPriorityProxy() ProxyResponse {
-	return pp.GetProxyByPriority(1)
+func (pp *ProxyPool) GetLowPriorityProxy(weight int) ProxyResponse {
+	return pp.GetProxyByPriority(1, weight)
 }
 
-func (pp *ProxyPool) GetTopPriorityProxy() ProxyResponse {
-	return pp.GetProxyByPriority(0)
+func (pp *ProxyPool) GetTopPriorityProxy(weight int) ProxyResponse {
+	return pp.GetProxyByPriority(0, weight)
 }
 
 func (pp *ProxyPool) GetStats() []string {
