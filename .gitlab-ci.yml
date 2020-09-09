@@ -401,10 +401,10 @@ production:
 
     if [[ "$CI_ENVIRONMENT_NAME" == "develop" ]]; then
       echo "Configuring aws in DEV environment"
-      aws eks update-kubeconfig --name anime-cluster-dev
+      aws eks update-kubeconfig --name nge-cluster-dev
     else
       echo "Configuring aws in PROD environment"
-      aws eks update-kubeconfig --name anime-cluster
+      aws eks update-kubeconfig --name nge-cluster
     fi
   }
 
