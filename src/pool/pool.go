@@ -93,7 +93,7 @@ func newProxySingleton() *ProxyPool {
 func GetProxyPoolInstance() *ProxyPool {
 	if proxySingleton == nil {
 		proxySingleton = newProxySingleton()
-		go proxySingleton.CheckProxyTimeout()
+		//go proxySingleton.CheckProxyTimeout()
 	}
 	return proxySingleton
 }
