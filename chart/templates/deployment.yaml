@@ -38,17 +38,17 @@ spec:
           valueFrom:
             secretKeyRef:
               name: proxypool-secrets
-              key: REDIS_HOST
+              key: redis-host
         - name: REDIS_PORT
           valueFrom:
             secretKeyRef:
               name: proxypool-secrets
-              key: REDIS_PORT
+              key: redis-port
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
               name: proxypool-secrets
-              key: REDIS_PASSWORD
+              key: redis-password
         ports:
         - name: "{{ .Values.service.name }}"
           containerPort: {{ .Values.service.internalPort }}
