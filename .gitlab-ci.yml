@@ -75,6 +75,7 @@ test:
     - ln -s /go/src/gitlab.com/crypto_project /go/src/_/builds/crypto_project
     # install and start redis
     - apt update && apt install redis -y
+    - echo "requirepass test" >> /etc/redis/redis.conf
     - service redis-server start
     - service --status-all
     - ss -alt
