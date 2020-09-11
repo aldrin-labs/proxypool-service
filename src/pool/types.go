@@ -12,13 +12,11 @@ type ProxyPool struct {
 	Proxies             [][]string
 	CurrentProxyIndexes map[int]int
 	ExchangeProxyMap    map[int]map[string]*Proxy
-	DebtorsMap          map[string]time.Time
 
 	LimiterCtx       *context.Context
 	RedisRateLimiter *redis_rate.Limiter
 
 	StartupTime     time.Time
-	Timeout         int
 	proxyIndexesMux sync.Mutex
 	proxyStatsMux   sync.Mutex
 }
@@ -26,7 +24,6 @@ type ProxyPool struct {
 type Proxy struct {
 	Usages int
 	Name   string
-	Locked bool
 	Limit  int
 }
 

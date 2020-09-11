@@ -3,7 +3,6 @@ package pool
 import (
 	"context"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
@@ -57,7 +56,6 @@ func newProxySingleton() *ProxyPool {
 			proxyMap[i][proxy] = &Proxy{
 				Usages: 0,
 				Limit:  normalLimit,
-				Locked: false,
 				Name:   proxy,
 			}
 		}
@@ -70,13 +68,11 @@ func newProxySingleton() *ProxyPool {
 		Proxies:             proxies,
 		CurrentProxyIndexes: currentProxyIndexes,
 		ExchangeProxyMap:    proxyMap,
-		DebtorsMap:          map[string]time.Time{},
 		LimiterCtx:          &limiterCtx,
 		RedisRateLimiter:    redisRateLimiter,
 		proxyIndexesMux:     sync.Mutex{},
 		proxyStatsMux:       sync.Mutex{},
 		StartupTime:         time.Now(),
-		Timeout:             90,
 	}
 }
 
@@ -106,16 +102,18 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 	pp.proxyIndexesMux.Unlock()
 
 	for {
+		// TODO: change currentProxyURL to better key (we have password there, not secure)
 		res, err := pp.RedisRateLimiter.AllowN(*pp.LimiterCtx, currentProxyURL, redis_rate.PerMinute(currentProxy.Limit), weight)
 		if err != nil {
 			log.Printf("Error while calling AllowN: %s", err.Error())
 			time.Sleep(3 * time.Second)
+			continue
 		}
 
 		if res.Allowed > 0 {
 			break
 		} else {
-			log.Println("Allowed:", res.Allowed, "Remaining:", res.Remaining, "Retry in:", res.RetryAfter)
+			log.Println("Not allowed. Retry in:", res.RetryAfter)
 
 			if priority == 0 {
 				log.Print("Top priority proxy is blocked. Returning low priority proxy.")
@@ -128,7 +126,6 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 
 	pp.proxyStatsMux.Lock()
 	currentProxy.Usages++
-	pp.DebtorsMap[currentProxyURL+"_"+strconv.Itoa(currentProxy.Usages)] = time.Now()
 	pp.proxyStatsMux.Unlock()
 
 	log.Print("return proxy url: ", currentProxyURL, " proxy")
