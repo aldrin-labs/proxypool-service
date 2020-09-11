@@ -65,14 +65,14 @@ func (pp *ProxyPool) CheckProxyTimeout() {
 }
 
 func (pp *ProxyPool) ExemptProxy(url string, counter int) {
-	println("exempt url counter", url, counter)
+	// println("exempt url counter", url, counter)
 	pp.proxyStatsMux.Lock()
 	for priority, proxyArr := range pp.Proxies {
 		for _, proxy := range proxyArr {
 			if proxy == url && pp.ExchangeProxyMap[priority][proxy].NeedResponses > 0 {
 				pp.ExchangeProxyMap[priority][proxy].NeedResponses--
 				pp.DebtorsMap[proxy+"_"+strconv.Itoa(counter)] = time.Time{}
-				log.Print("ExemptProxy url: ", url, "new needResponses: ", pp.ExchangeProxyMap[priority][proxy].NeedResponses)
+				// log.Print("ExemptProxy url: ", url, "new needResponses: ", pp.ExchangeProxyMap[priority][proxy].NeedResponses)
 			}
 		}
 	}

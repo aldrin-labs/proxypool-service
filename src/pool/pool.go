@@ -2,16 +2,38 @@ package pool
 
 import (
 	"context"
+	"os"
 	"strconv"
 	"sync"
 	"time"
 
 	"log"
 
-	"golang.org/x/time/rate"
+	"github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis_rate/v9"
 )
 
 var proxySingleton *ProxyPool
+
+func newRedisLimiter(ctx *context.Context) *redis_rate.Limiter {
+
+	host := os.Getenv("REDIS_HOST")
+	port := os.Getenv("REDIS_PORT")
+	addr := host + ":" + port
+
+	log.Printf("Connectiong to redis on %s", addr)
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: os.Getenv("REDIS_PASSWORD"),
+		// 0 - use default DB
+		DB: 0,
+	})
+
+	_ = rdb.FlushDB(*ctx).Err()
+
+	return redis_rate.NewLimiter(rdb)
+}
 
 func newProxySingleton() *ProxyPool {
 	var proxies [][]string
@@ -26,17 +48,13 @@ func newProxySingleton() *ProxyPool {
 	proxyMap[1] = map[string]*Proxy{}
 	currentProxyIndexes[1] = 0
 
-	normalLimit := 500.0 / 60.0 // 500 / min
-	normalRateLimit := rate.Limit(normalLimit)
-	// how much requests can be run simultaneously if there were no throttling when they were received
-	burst := 110
+	normalLimit := 600
 
 	for i, proxyArr := range proxies {
 		log.Printf("Init %d proxies with %d priority...", len(proxyArr), i)
 
 		for _, proxy := range proxyArr {
 			proxyMap[i][proxy] = &Proxy{
-				RateLimiter:   rate.NewLimiter(normalRateLimit, burst),
 				Usages:        0,
 				Limit:         normalLimit,
 				Locked:        false,
@@ -46,11 +64,16 @@ func newProxySingleton() *ProxyPool {
 		}
 	}
 
+	limiterCtx := context.Background()
+	redisRateLimiter := newRedisLimiter(&limiterCtx)
+
 	return &ProxyPool{
 		Proxies:             proxies,
 		CurrentProxyIndexes: currentProxyIndexes,
 		ExchangeProxyMap:    proxyMap,
 		DebtorsMap:          map[string]time.Time{},
+		LimiterCtx:          &limiterCtx,
+		RedisRateLimiter:    redisRateLimiter,
 		proxyIndexesMux:     sync.Mutex{},
 		proxyStatsMux:       sync.Mutex{},
 		StartupTime:         time.Now(),
@@ -82,17 +105,27 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 
 	currentProxyURL := pp.Proxies[priority][currentIndex]
 	currentProxy := pp.ExchangeProxyMap[priority][currentProxyURL]
-	currentProxyRateLimiter := currentProxy.RateLimiter
 	pp.proxyIndexesMux.Unlock()
 
-	if currentProxyRateLimiter.AllowN(time.Now(), weight) == false {
-		if priority == 0 {
-			log.Print("Top priority proxy is blocked. Returning low priority proxy.")
-			return pp.GetLowPriorityProxy(weight)
+	for {
+		res, err := pp.RedisRateLimiter.AllowN(*pp.LimiterCtx, currentProxyURL, redis_rate.PerMinute(currentProxy.Limit), weight)
+		if err != nil {
+			log.Printf("Error while calling AllowN: %s", err.Error())
+			time.Sleep(3 * time.Second)
 		}
 
-		ctx := context.Background()
-		currentProxyRateLimiter.WaitN(ctx, weight)
+		if res.Allowed > 0 {
+			break
+		} else {
+			log.Println("Allowed:", res.Allowed, "Remaining:", res.Remaining, "Retry in:", res.RetryAfter)
+
+			if priority == 0 {
+				log.Print("Top priority proxy is blocked. Returning low priority proxy.")
+				return pp.GetLowPriorityProxy(weight)
+			}
+
+			time.Sleep(res.RetryAfter)
+		}
 	}
 
 	pp.proxyStatsMux.Lock()

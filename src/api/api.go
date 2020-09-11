@@ -47,7 +47,7 @@ func Index(ctx *fasthttp.RequestCtx) {
 }
 
 func Exempt(ctx *fasthttp.RequestCtx) {
-	println("call ex")
+	// println("call ex")
 	res := &struct {
 		Proxy   string `json:"proxy"`
 		Counter int    `json:"counter"`
