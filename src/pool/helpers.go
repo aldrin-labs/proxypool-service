@@ -32,7 +32,7 @@ func (pp *ProxyPool) GetStats() []string {
 
 	for priority := range pp.ExchangeProxyMap {
 		for _, proxy := range pp.ExchangeProxyMap[priority] {
-			proxyIP := findIP(proxy.Name)
+			proxyIP := findIP(proxy.URL)
 			data := fmt.Sprintf("Proxy %s with priority %d got %f requests/sec on avg \n", proxyIP, priority, float64(proxy.Usages)/timeSinceStartup)
 			stats = append(stats, data)
 		}

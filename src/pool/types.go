@@ -22,12 +22,12 @@ type ProxyPool struct {
 }
 
 type Proxy struct {
+	URL    string
 	Usages int
-	Name   string
 	Limit  int
 }
 
 type ProxyResponse struct {
-	Proxy   string `json:"proxy"`
-	Counter int    `json:"counter"`
+	ProxyURL string `json:"proxy"`
+	Counter  int    `json:"counter"`
 }

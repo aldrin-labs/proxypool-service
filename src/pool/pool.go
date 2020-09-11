@@ -48,16 +48,16 @@ func newProxySingleton() *ProxyPool {
 	proxyMap[1] = map[string]*Proxy{}
 	currentProxyIndexes[1] = 0
 
-	normalLimit := 600
+	limit := 600
 
 	for i, proxyArr := range proxies {
 		log.Printf("Init %d proxies with %d priority...", len(proxyArr), i)
 
-		for _, proxy := range proxyArr {
-			proxyMap[i][proxy] = &Proxy{
+		for _, proxyURL := range proxyArr {
+			proxyMap[i][proxyURL] = &Proxy{
 				Usages: 0,
-				Limit:  normalLimit,
-				Name:   proxy,
+				Limit:  limit,
+				URL:    proxyURL,
 			}
 		}
 	}
@@ -86,21 +86,11 @@ func GetProxyPoolInstance() *ProxyPool {
 
 func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse {
 	if pp.Proxies == nil {
-		return ProxyResponse{Proxy: "", Counter: 0}
+		return ProxyResponse{ProxyURL: "", Counter: 0}
 	}
 
-	// TODO: maybe it's better to use sync.map here
-	pp.proxyIndexesMux.Lock()
-	currentIndex := pp.CurrentProxyIndexes[priority]
-	pp.CurrentProxyIndexes[priority] = currentIndex + 1
-	if currentIndex >= len(pp.Proxies[priority]) {
-		pp.CurrentProxyIndexes[priority] = 1
-		currentIndex = 0
-	}
-
-	currentProxyURL := pp.Proxies[priority][currentIndex]
-	currentProxy := pp.ExchangeProxyMap[priority][currentProxyURL]
-	pp.proxyIndexesMux.Unlock()
+	currentProxy := pp.selectProxyByRoundRobin(priority)
+	currentProxyURL := currentProxy.URL
 
 	for {
 		// TODO: change currentProxyURL to better key (we have password there, not secure)
@@ -125,14 +115,12 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		}
 	}
 
-	pp.proxyStatsMux.Lock()
-	currentProxy.Usages++
-	pp.proxyStatsMux.Unlock()
+	go pp.reportProxyUsage(currentProxy)
 
-	log.Print("return proxy url: ", currentProxyURL, " proxy")
+	log.Printf("Returning proxy: %s", currentProxyURL)
 	return ProxyResponse{
-		Proxy:   currentProxyURL,
-		Counter: currentProxy.Usages,
+		ProxyURL: currentProxyURL,
+		Counter:  currentProxy.Usages,
 	}
 }
 
@@ -142,4 +130,29 @@ func (pp *ProxyPool) GetLowPriorityProxy(weight int) ProxyResponse {
 
 func (pp *ProxyPool) GetTopPriorityProxy(weight int) ProxyResponse {
 	return pp.GetProxyByPriority(0, weight)
+}
+
+func (pp *ProxyPool) selectProxyByRoundRobin(priority int) *Proxy {
+	// TODO: maybe it's better to use sync.map here
+	pp.proxyIndexesMux.Lock()
+
+	currentIndex := pp.CurrentProxyIndexes[priority]
+	pp.CurrentProxyIndexes[priority] = currentIndex + 1
+	if currentIndex >= len(pp.Proxies[priority]) {
+		pp.CurrentProxyIndexes[priority] = 1
+		currentIndex = 0
+	}
+
+	currentProxyURL := pp.Proxies[priority][currentIndex]
+	proxy := pp.ExchangeProxyMap[priority][currentProxyURL]
+
+	pp.proxyIndexesMux.Unlock()
+
+	return proxy
+}
+
+func (pp *ProxyPool) reportProxyUsage(proxy *Proxy) {
+	pp.proxyStatsMux.Lock()
+	proxy.Usages++
+	pp.proxyStatsMux.Unlock()
 }
