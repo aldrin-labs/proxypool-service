@@ -12,7 +12,7 @@ import (
 	"gitlab.com/crypto_project/core/proxypool_service/tests/tests_helpers"
 )
 
-func TestHTTPRequestThrottling(t *testing.T) {
+func TestScaling(t *testing.T) {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")

@@ -73,9 +73,15 @@ test:
     - mkdir -p /go/src/gitlab.com/crypto_project /go/src/_/builds
     - cp -r $CI_PROJECT_DIR /go/src/gitlab.com/crypto_project/strategy
     - ln -s /go/src/gitlab.com/crypto_project /go/src/_/builds/crypto_project
+    # install and start redis
+    - apt update && apt install redis -y
+    - service redis-server start
+    - service --status-all
+    - ss -alt
+    # install project dependencies
     - go get -v -d ./...
   script:
-    - go test -v ./tests
+    - go test -v ./tests/scaling_test.go
   only:
     - branches
 
