@@ -29,8 +29,6 @@ func newRedisLimiter(ctx *context.Context) *redis_rate.Limiter {
 		DB: 0,
 	})
 
-	_ = rdb.FlushDB(*ctx).Err()
-
 	return redis_rate.NewLimiter(rdb)
 }
 
