@@ -29,6 +29,9 @@ func newRedisLimiter(ctx *context.Context) *redis_rate.Limiter {
 		DB: 0,
 	})
 
+	pingResult := rdb.Ping(*ctx).String()
+	log.Printf("Redis: %s \n", pingResult)
+
 	return redis_rate.NewLimiter(rdb)
 }
 
