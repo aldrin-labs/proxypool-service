@@ -1,18 +1,14 @@
 package tests
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/joho/godotenv"
 	"gitlab.com/crypto_project/core/proxypool_service/src/api"
+	"gitlab.com/crypto_project/core/proxypool_service/tests/tests_helpers"
 )
 
 // this test requires redis connection
@@ -23,7 +19,8 @@ func TestHTTPRequestThrottling(t *testing.T) {
 		log.Fatal("Error loading .env file")
 	}
 
-	go api.RunServer()
+	port := ":5901"
+	go api.RunServer(port)
 
 	// waiting for api server to go up
 	time.Sleep(1 * time.Second)
@@ -40,19 +37,21 @@ func TestHTTPRequestThrottling(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(totalRequests)
 
+	// make requests to proxypool
 	start := time.Now()
 	for i := 0; i < threads; i++ {
 		// all request are done simultaneously from multiple threads to imitate heavy load
-		go makeProxyRequests(proxyPriority, requestWeight, requestsByThread, &wg)
+		go tests_helpers.MakeProxyRequests(port, proxyPriority, requestWeight, requestsByThread, &wg)
 	}
 
 	requestDuration := time.Since(start).Milliseconds()
 	log.Printf("Test started %d threads in %d ms...", threads, requestDuration)
 
+	// wait and measure execution time
 	wg.Wait()
-
 	duration := time.Since(start).Milliseconds()
 
+	// calculate expected execution time
 	thresholdWeightInMin := 60 * rateLimitSec * numberOfProxies
 	totalWeight := requestWeight * threads * requestsByThread
 	overThresholdWeight := totalWeight - thresholdWeightInMin
@@ -62,48 +61,10 @@ func TestHTTPRequestThrottling(t *testing.T) {
 
 	expectedExecTime := (float64(overThresholdWeight) / float64(totalWeight)) * 60 * 1000
 
-	log.Print("thresholdWeightInMin: ", thresholdWeightInMin, " overThresholdWeight: ", overThresholdWeight)
+	// log.Print("thresholdWeightInMin: ", thresholdWeightInMin, " overThresholdWeight: ", overThresholdWeight)
 	log.Printf("Total %d requests with weight %d to pool with %d proxies and rate limit %d req/s done in %d ms, expected > ~ %f ms", totalRequests, totalWeight, numberOfProxies, rateLimitSec, duration, expectedExecTime)
 
 	if duration < int64(expectedExecTime) {
 		t.Error("Not enough time passed, something is wrong with rate limiter.")
 	}
-}
-
-func makeProxyRequests(priority int, weight int, numberOfRequests int, wg *sync.WaitGroup) {
-	for i := 0; i < numberOfRequests; i++ {
-		proxyPoolURL := fmt.Sprintf("http://localhost:5901/getProxy?priority=%d&weight=%d", priority, weight)
-		proxyDataInterface := makeHTTPRequest(proxyPoolURL)
-		proxyDataString := fmt.Sprintf("%s", proxyDataInterface)
-		// log.Printf("Got proxy string: %s", proxyDataString)
-
-		proxyData := &struct {
-			Proxy   string `json:"proxy"`
-			Counter int    `json:"counter"`
-		}{}
-
-		json.Unmarshal([]byte(proxyDataString), proxyData)
-		// log.Printf("Got proxy data: %v", proxyData.Proxy)
-
-		wg.Done()
-	}
-}
-
-func makeHTTPRequest(url string) interface{} {
-	req, err := http.NewRequest("GET", url, bytes.NewBuffer([]byte{}))
-	if err != nil {
-		log.Println("Request error", err)
-	}
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Println("Request error", err)
-	}
-
-	defer resp.Body.Close()
-
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	return body
 }
