@@ -24,11 +24,10 @@ type ProxyPool struct {
 }
 
 type Proxy struct {
-	Usages        int
-	Name          string
-	Locked        bool
-	Limit         int
-	NeedResponses int
+	Usages int
+	Name   string
+	Locked bool
+	Limit  int
 }
 
 type ProxyResponse struct {

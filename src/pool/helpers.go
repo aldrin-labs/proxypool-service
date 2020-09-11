@@ -7,8 +7,6 @@ import (
 	"log"
 	"os"
 	"regexp"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -48,33 +46,4 @@ func findIP(input string) string {
 	regexPattern := numBlock + "\\." + numBlock + "\\." + numBlock + "\\." + numBlock
 	regEx := regexp.MustCompile(regexPattern)
 	return regEx.FindString(input)
-}
-
-func (pp *ProxyPool) CheckProxyTimeout() {
-	// timeout func here
-	for {
-		time.Sleep(30 * time.Second)
-		for k, v := range pp.DebtorsMap {
-			if time.Since(v).Seconds() >= float64(pp.Timeout) && !v.IsZero() {
-				arr := strings.Split(k, "_")
-				counter, _ := strconv.Atoi(arr[1])
-				pp.ExemptProxy(arr[0], counter)
-			}
-		}
-	}
-}
-
-func (pp *ProxyPool) ExemptProxy(url string, counter int) {
-	// println("exempt url counter", url, counter)
-	pp.proxyStatsMux.Lock()
-	for priority, proxyArr := range pp.Proxies {
-		for _, proxy := range proxyArr {
-			if proxy == url && pp.ExchangeProxyMap[priority][proxy].NeedResponses > 0 {
-				pp.ExchangeProxyMap[priority][proxy].NeedResponses--
-				pp.DebtorsMap[proxy+"_"+strconv.Itoa(counter)] = time.Time{}
-				// log.Print("ExemptProxy url: ", url, "new needResponses: ", pp.ExchangeProxyMap[priority][proxy].NeedResponses)
-			}
-		}
-	}
-	pp.proxyStatsMux.Unlock()
 }

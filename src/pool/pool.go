@@ -55,11 +55,10 @@ func newProxySingleton() *ProxyPool {
 
 		for _, proxy := range proxyArr {
 			proxyMap[i][proxy] = &Proxy{
-				Usages:        0,
-				Limit:         normalLimit,
-				Locked:        false,
-				NeedResponses: 0,
-				Name:          proxy,
+				Usages: 0,
+				Limit:  normalLimit,
+				Locked: false,
+				Name:   proxy,
 			}
 		}
 	}
@@ -84,7 +83,6 @@ func newProxySingleton() *ProxyPool {
 func GetProxyPoolInstance() *ProxyPool {
 	if proxySingleton == nil {
 		proxySingleton = newProxySingleton()
-		//go proxySingleton.CheckProxyTimeout()
 	}
 	return proxySingleton
 }
@@ -130,11 +128,10 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 
 	pp.proxyStatsMux.Lock()
 	currentProxy.Usages++
-	currentProxy.NeedResponses++
 	pp.DebtorsMap[currentProxyURL+"_"+strconv.Itoa(currentProxy.Usages)] = time.Now()
 	pp.proxyStatsMux.Unlock()
 
-	log.Print("return proxy url: ", currentProxyURL, " proxy, needResponses: ", currentProxy.NeedResponses)
+	log.Print("return proxy url: ", currentProxyURL, " proxy")
 	return ProxyResponse{
 		Proxy:   currentProxyURL,
 		Counter: currentProxy.Usages,
