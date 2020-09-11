@@ -92,12 +92,21 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 	currentProxy := pp.selectProxyByRoundRobin(priority)
 	currentProxyURL := currentProxy.URL
 
+	retryCounter := 0
+
 	for {
 		// TODO: change currentProxyURL to better key (we have password there, not secure)
-		res, err := pp.RedisRateLimiter.AllowN(*pp.LimiterCtx, currentProxyURL, redis_rate.PerMinute(currentProxy.Limit), weight)
-		if err != nil {
-			log.Printf("Error while calling AllowN: %s", err.Error())
-			time.Sleep(3 * time.Second)
+		res, redisError := pp.RedisRateLimiter.AllowN(*pp.LimiterCtx, currentProxyURL, redis_rate.PerMinute(currentProxy.Limit), weight)
+		if redisError != nil {
+			if retryCounter >= 3 {
+				log.Printf("Critical error! Failed to serve proxies after %d retries", retryCounter)
+				return ProxyResponse{ProxyURL: "", Counter: 0}
+			}
+
+			log.Printf("Error while calling AllowN: %s . Retrying...", redisError.Error())
+			retryCounter++
+
+			time.Sleep(time.Duration(3*retryCounter) * time.Second)
 			continue
 		}
 
