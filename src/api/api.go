@@ -53,7 +53,7 @@ func Healthz(ctx *fasthttp.RequestCtx) {
 	fmt.Fprint(ctx, "alive!\n")
 }
 
-func RunServer() {
+func RunServer(port string) {
 	router := fasthttprouter.New()
 	pool.GetProxyPoolInstance()
 	router.GET("/", Index)
@@ -62,6 +62,6 @@ func RunServer() {
 	router.GET("/healthz", Healthz)
 	router.POST("/exempt", Exempt)
 
-	log.Print("Listening on port :5901")
-	log.Fatal(fasthttp.ListenAndServe(":5901", router.Handler))
+	log.Printf("Listening on port %s", port)
+	log.Fatal(fasthttp.ListenAndServe(port, router.Handler))
 }
