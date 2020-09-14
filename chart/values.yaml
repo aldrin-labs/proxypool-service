@@ -35,10 +35,10 @@ shell:
   name: omnibus
   port: og-shell
 
-resources: {}
+resources:
   limits:
-   cpu: 100m
-   memory: 96Mi
+    cpu: 100m
+    memory: 96Mi
   requests:
-   cpu: 50m
-   memory: 32Mi
+    cpu: 50m
+    memory: 32Mi
