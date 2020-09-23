@@ -1,0 +1,4 @@
+PROXYLIST=base-64-encoded-proxylist
+REDIS_PASSWORD=pass
+REDIS_HOST=localhost
+REDIS_PORT=6379

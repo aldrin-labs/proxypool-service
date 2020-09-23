@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"strconv"
-	"time"
 
 	"github.com/buaazp/fasthttprouter"
 	"github.com/valyala/fasthttp"
@@ -29,14 +28,14 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 }
 
 func TestProxy(ctx *fasthttp.RequestCtx) {
-	weight, _ := strconv.Atoi(string(ctx.QueryArgs().Peek("weight")))
-	for i := 0; i < 300; i++ {
-		go func(i int) {
-			proxyRes := pool.GetProxyPoolInstance().GetTopPriorityProxy(weight)
-			time.Sleep(10 * time.Millisecond)
-			pool.GetProxyPoolInstance().ExemptProxy(proxyRes.Proxy, i)
-		}(i)
-	}
+	// weight, _ := strconv.Atoi(string(ctx.QueryArgs().Peek("weight")))
+	// for i := 0; i < 300; i++ {
+	// 	go func(i int) {
+	// 		proxyRes := pool.GetProxyPoolInstance().GetTopPriorityProxy(weight)
+	// 		time.Sleep(10 * time.Millisecond)
+	// 		pool.GetProxyPoolInstance().ExemptProxy(proxyRes.Proxy, i)
+	// 	}(i)
+	// }
 }
 
 // Index is the index handler
@@ -47,27 +46,14 @@ func Index(ctx *fasthttp.RequestCtx) {
 }
 
 func Exempt(ctx *fasthttp.RequestCtx) {
-	println("call ex")
-	res := &struct {
-		Proxy   string `json:"proxy"`
-		Counter int    `json:"counter"`
-	}{}
-	err := json.Unmarshal(ctx.PostBody(), res)
-
-	// fmt.Printf("%s", ctx.PostBody())
-
-	if err != nil {
-		log.Print("err while Exempt", err.Error())
-	}
-
-	pool.GetProxyPoolInstance().ExemptProxy(res.Proxy, res.Counter)
+	// println("called Exempt")
 }
 
 func Healthz(ctx *fasthttp.RequestCtx) {
 	fmt.Fprint(ctx, "alive!\n")
 }
 
-func RunServer() {
+func RunServer(port string) {
 	router := fasthttprouter.New()
 	pool.GetProxyPoolInstance()
 	router.GET("/", Index)
@@ -76,6 +62,6 @@ func RunServer() {
 	router.GET("/healthz", Healthz)
 	router.POST("/exempt", Exempt)
 
-	log.Print("Listening on port :5901")
-	log.Fatal(fasthttp.ListenAndServe(":5901", router.Handler))
+	log.Printf("Listening on port %s", port)
+	log.Fatal(fasthttp.ListenAndServe(port, router.Handler))
 }

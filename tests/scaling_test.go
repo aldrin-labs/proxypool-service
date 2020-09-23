@@ -2,6 +2,7 @@ package tests
 
 import (
 	"log"
+	"math/rand"
 	"sync"
 	"testing"
 	"time"
@@ -11,18 +12,23 @@ import (
 	"gitlab.com/crypto_project/core/proxypool_service/tests/tests_helpers"
 )
 
-// this test requires redis connection
-
-func TestHTTPRequestThrottling(t *testing.T) {
+func TestScaling(t *testing.T) {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
-	port := ":5901"
-	go api.RunServer(port)
+	// simulating multiple service instances
+	portOne := ":5901"
+	go api.RunServer(portOne)
 
-	// waiting for api server to go up
+	portTwo := ":5902"
+	go api.RunServer(portTwo)
+
+	portThree := ":5903"
+	go api.RunServer(portThree)
+
+	// waiting for api servers to go up
 	time.Sleep(1 * time.Second)
 
 	threads := 10
@@ -37,18 +43,19 @@ func TestHTTPRequestThrottling(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(totalRequests)
 
-	// make requests to proxypool
 	start := time.Now()
 	for i := 0; i < threads; i++ {
 		// all request are done simultaneously from multiple threads to imitate heavy load
+		port := selectRandomServicePort(portOne, portTwo, portThree)
+
 		go tests_helpers.MakeProxyRequests(port, proxyPriority, requestWeight, requestsByThread, &wg)
 	}
 
 	requestDuration := time.Since(start).Milliseconds()
 	log.Printf("Test started %d threads in %d ms...", threads, requestDuration)
 
-	// wait and measure execution time
 	wg.Wait()
+
 	duration := time.Since(start).Milliseconds()
 
 	// calculate expected execution time
@@ -66,5 +73,19 @@ func TestHTTPRequestThrottling(t *testing.T) {
 
 	if duration < int64(expectedExecTime) {
 		t.Error("Not enough time passed, something is wrong with rate limiter.")
+	}
+}
+
+func selectRandomServicePort(portOne string, portTwo string, portThree string) string {
+	randomInt := rand.Intn(3)
+	switch randomInt {
+	case 0:
+		return portOne
+	case 1:
+		return portTwo
+	case 2:
+		return portThree
+	default:
+		return portOne
 	}
 }

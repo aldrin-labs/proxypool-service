@@ -65,7 +65,7 @@ build:
   only:
     - branches
 
-test:
+.test:
   stage: test
   image: golang:1.13.4
   allow_failure: true
@@ -73,9 +73,16 @@ test:
     - mkdir -p /go/src/gitlab.com/crypto_project /go/src/_/builds
     - cp -r $CI_PROJECT_DIR /go/src/gitlab.com/crypto_project/strategy
     - ln -s /go/src/gitlab.com/crypto_project /go/src/_/builds/crypto_project
+    # install and start redis
+    - apt update && apt install redis -y
+    - echo "requirepass test" >> /etc/redis/redis.conf
+    - service redis-server start
+    - service --status-all
+    - ss -alt
+    # install project dependencies
     - go get -v -d ./...
   script:
-    - go test -v ./tests
+    - go test -v ./tests/scaling_test.go
   only:
     - branches
 
