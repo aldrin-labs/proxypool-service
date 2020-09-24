@@ -12,12 +12,13 @@ type BinancePingResponse struct {
 }
 
 type HealthCheckResponse struct {
-	Success       bool                 `json:"success"`
-	UsedWeight    string               `json:"usedWeight"`
-	ProxyPriority int                  `json:"proxyPriority"`
-	ProxyCountry  string               `json:"proxyCountry"`
-	ProxyRealIP   string               `json:"proxyRealIp"`
-	Response      *BinancePingResponse `json:"response"`
+	Success           bool                 `json:"success"`
+	UsedSpotWeight    string               `json:"usedSpotWeight"`
+	UsedFuturesWeight string               `json:"usedFuturesWeight"`
+	ProxyPriority     int                  `json:"proxyPriority"`
+	ProxyCountry      string               `json:"proxyCountry"`
+	ProxyRealIP       string               `json:"proxyRealIp"`
+	Response          *BinancePingResponse `json:"response"`
 }
 
 type IPCheckResponse struct {
@@ -27,23 +28,26 @@ type IPCheckResponse struct {
 }
 
 func CheckProxy(proxyURL string, priority int) HealthCheckResponse {
-	binanceFapiEndpoint := "https://fapi.binance.com/fapi/v1/time"
-	// binanceSpotEndpoint := "https://api.binance.com/api/v3/exchangeInfo"
+	binanceFapiTimeEndpoint := "https://fapi.binance.com/fapi/v1/time"
+	binanceSpotEndpoint := "https://api.binance.com/api/v3/exchangeInfo"
 
 	realIP, country := getProxyInfo(proxyURL)
 
-	rawResult, headers := MakeHTTPRequestUsingProxy(binanceFapiEndpoint, proxyURL)
+	rawResult, futuresHeaders := MakeHTTPRequestUsingProxy(binanceFapiTimeEndpoint, proxyURL)
+	_, spotHeaders := MakeHTTPRequestUsingProxy(binanceSpotEndpoint, proxyURL)
 
-	usedWeight := headers.Get("X-MBX-USED-WEIGHT-1m")
+	usedWeightFutures := futuresHeaders.Get("X-MBX-USED-WEIGHT-1m")
+	usedWeightSpot := spotHeaders.Get("X-MBX-USED-WEIGHT-1m")
 
 	result := BinancePingResponse{}
 	hcResponse := HealthCheckResponse{
-		Success:       false,
-		UsedWeight:    usedWeight,
-		ProxyPriority: priority,
-		ProxyRealIP:   realIP,
-		ProxyCountry:  country,
-		Response:      &result,
+		Success:           false,
+		UsedSpotWeight:    usedWeightSpot,
+		UsedFuturesWeight: usedWeightFutures,
+		ProxyPriority:     priority,
+		ProxyRealIP:       realIP,
+		ProxyCountry:      country,
+		Response:          &result,
 	}
 
 	jsonErr := json.Unmarshal(rawResult.([]byte), &result)
