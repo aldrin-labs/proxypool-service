@@ -1,4 +1,5 @@
 PROXYLIST=base-64-encoded-proxylist
+STATSD_HOST=xxx.xxx.xxx.xxx
 REDIS_PASSWORD=pass
 REDIS_HOST=localhost
 REDIS_PORT=6379

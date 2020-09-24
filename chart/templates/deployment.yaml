@@ -49,6 +49,12 @@ spec:
             secretKeyRef:
               name: proxypool-secrets
               key: redis-password
+        - name: STATSD_HOST
+          valueFrom:
+            secretKeyRef:
+              name: proxypool-secrets
+              key: statsd-host
+              optional: true
         ports:
         - name: "{{ .Values.service.name }}"
           containerPort: {{ .Values.service.internalPort }}

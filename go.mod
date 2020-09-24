@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	github.com/buaazp/fasthttprouter v0.1.1
+	github.com/cactus/go-statsd-client/statsd v0.0.0-20200728222731-a2baea3bbfc6
 	github.com/go-redis/redis v6.15.2+incompatible // indirect
 	github.com/go-redis/redis/v8 v8.0.0-beta.11
 	github.com/go-redis/redis_rate/v9 v9.0.1
@@ -17,5 +18,5 @@ require (
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
 	github.com/xdg/stringprep v1.0.0 // indirect
 	go.mongodb.org/mongo-driver v1.0.1 // indirect
-	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1
+	golang.org/x/time v0.0.0-20200416051211-89c76fbcd5d1 // indirect
 )
