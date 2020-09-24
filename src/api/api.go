@@ -43,7 +43,7 @@ func TestProxies(ctx *fasthttp.RequestCtx) {
 				continue
 			}
 
-			checkResult := pool.CheckProxy(translatedProxyURL)
+			checkResult := pool.CheckProxy(translatedProxyURL, priority)
 			results[proxyURL] = checkResult
 
 			// log.Printf("%v : %v", proxyURL, checkResult)
