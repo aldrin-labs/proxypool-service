@@ -12,22 +12,25 @@ type BinancePingResponse struct {
 }
 
 type HealthCheckResponse struct {
-	Success  bool                 `json:"success"`
-	Response *BinancePingResponse `json:"response"`
+	Success    bool                 `json:"success"`
+	UsedWeight string               `json:"usedWeight"`
+	Response   *BinancePingResponse `json:"response"`
 }
 
 func CheckProxy(proxyURL string) HealthCheckResponse {
 	binanceFapiEndpoint := "https://fapi.binance.com/fapi/v1/time"
 	// binanceSpotEndpoint := "https://api.binance.com/api/v3/exchangeInfo"
 
-	rawResult := MakeHTTPRequestUsingProxy(binanceFapiEndpoint, proxyURL)
+	rawResult, headers := MakeHTTPRequestUsingProxy(binanceFapiEndpoint, proxyURL)
 
 	// log.Printf("%v", rawResult)
+	usedWeight := headers.Get("X-MBX-USED-WEIGHT-1m")
 
 	result := BinancePingResponse{}
 	hcResponse := HealthCheckResponse{
-		Success:  false,
-		Response: &result,
+		Success:    false,
+		UsedWeight: usedWeight,
+		Response:   &result,
 	}
 
 	jsonErr := json.Unmarshal(rawResult.([]byte), &result)

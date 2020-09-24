@@ -67,7 +67,7 @@ func TranslateProxyNameToProxyURL(proxyName string) (string, error) {
 }
 
 // MakeHTTPRequestUsingProxy - proxyURL format: http://login:pass@ip:port
-func MakeHTTPRequestUsingProxy(URL string, proxyURL string) interface{} {
+func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.Header) {
 
 	parsedProxyURL, err := url.Parse(proxyURL)
 	if err != nil {
@@ -77,18 +77,20 @@ func MakeHTTPRequestUsingProxy(URL string, proxyURL string) interface{} {
 	myClient := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(parsedProxyURL)}}
 
 	var body []byte
+	var headers http.Header
 
 	resp, err := myClient.Get(URL)
 	if err != nil {
 		log.Println("Request error", err)
-		return body
+		return body, headers
 	}
 
 	defer resp.Body.Close()
 	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("Request error", err)
+		return body, headers
 	}
 
-	return body
+	return body, resp.Header
 }
