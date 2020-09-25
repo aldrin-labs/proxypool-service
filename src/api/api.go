@@ -50,7 +50,7 @@ func TestProxies(ctx *fasthttp.RequestCtx) {
 		checkResult := <-ch
 		proxyURL := checkResult.ProxyURL
 		results[proxyURL] = checkResult
-		log.Printf("%v : %v", proxyURL, checkResult)
+		// log.Printf("%v : %v", proxyURL, checkResult)
 	}
 
 	jsonStr, err := json.Marshal(results)
@@ -61,7 +61,6 @@ func TestProxies(ctx *fasthttp.RequestCtx) {
 	fmt.Fprint(ctx, string(jsonStr))
 }
 
-// Index is the index handler
 func Index(ctx *fasthttp.RequestCtx) {
 	proxyPool := pool.GetProxyPoolInstance()
 	data := fmt.Sprintf("%v", proxyPool.GetStats())
