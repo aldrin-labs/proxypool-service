@@ -15,6 +15,7 @@ type HealthCheckResponse struct {
 	Success           bool                 `json:"success"`
 	UsedSpotWeight    string               `json:"usedSpotWeight"`
 	UsedFuturesWeight string               `json:"usedFuturesWeight"`
+	ProxyURL          string               `json:"proxyURL"`
 	ProxyPriority     int                  `json:"proxyPriority"`
 	ProxyCountry      string               `json:"proxyCountry"`
 	ProxyRealIP       string               `json:"proxyRealIp"`
@@ -27,7 +28,7 @@ type IPCheckResponse struct {
 	CC      string `json:"cc"`
 }
 
-func CheckProxy(proxyURL string, priority int) HealthCheckResponse {
+func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 	binanceFapiTimeEndpoint := "https://fapi.binance.com/fapi/v1/time"
 	binanceSpotEndpoint := "https://api.binance.com/api/v3/exchangeInfo"
 
@@ -44,6 +45,7 @@ func CheckProxy(proxyURL string, priority int) HealthCheckResponse {
 		Success:           false,
 		UsedSpotWeight:    usedWeightSpot,
 		UsedFuturesWeight: usedWeightFutures,
+		ProxyURL:          proxyURL,
 		ProxyPriority:     priority,
 		ProxyRealIP:       realIP,
 		ProxyCountry:      country,
@@ -53,15 +55,18 @@ func CheckProxy(proxyURL string, priority int) HealthCheckResponse {
 	jsonErr := json.Unmarshal(rawResult.([]byte), &result)
 	if jsonErr != nil {
 		log.Print("Json decode error:", rawResult)
-		return hcResponse
+		ch <- hcResponse
+		return
 	}
 
 	if result.ServerTime > 0 {
 		hcResponse.Success = true
-		return hcResponse
+		ch <- hcResponse
+		return
 	}
 
-	return hcResponse
+	ch <- hcResponse
+	return
 }
 
 func getProxyInfo(proxyURL string) (string, string) {

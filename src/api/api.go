@@ -33,8 +33,11 @@ func TestProxy(ctx *fasthttp.RequestCtx) {
 func TestProxies(ctx *fasthttp.RequestCtx) {
 	results := make(map[string]pool.HealthCheckResponse)
 
+	ch := make(chan pool.HealthCheckResponse)
+
 	pp := pool.GetProxyPoolInstance()
 	proxies := pp.Proxies
+	numberRequests := 0
 	for priority := range proxies {
 		for _, proxyURL := range proxies[priority] {
 			translatedProxyURL, err := pool.TranslateProxyNameToProxyURL(proxyURL)
@@ -43,11 +46,17 @@ func TestProxies(ctx *fasthttp.RequestCtx) {
 				continue
 			}
 
-			checkResult := pool.CheckProxy(translatedProxyURL, priority)
-			results[proxyURL] = checkResult
-
-			// log.Printf("%v : %v", proxyURL, checkResult)
+			go pool.CheckProxy(translatedProxyURL, priority, ch)
+			numberRequests++
 		}
+	}
+
+	// getting results
+	for i := 1; i <= numberRequests; i++ {
+		checkResult := <-ch
+		proxyURL := checkResult.ProxyURL
+		results[proxyURL] = checkResult
+		log.Printf("%v : %v", proxyURL, checkResult)
 	}
 
 	jsonStr, err := json.Marshal(results)

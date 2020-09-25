@@ -15,6 +15,11 @@ import (
 	"time"
 )
 
+type HTTPResponseStruct struct {
+	Body    interface{}
+	Headers http.Header
+}
+
 func getProxiesFromENV(proxies *[][]string) {
 	proxiesBASE64 := os.Getenv("PROXYLIST")
 	log.Println("proxiesBASE64 ", proxiesBASE64)
