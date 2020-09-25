@@ -40,13 +40,7 @@ func TestProxies(ctx *fasthttp.RequestCtx) {
 	numberRequests := 0
 	for priority := range proxies {
 		for _, proxyURL := range proxies[priority] {
-			translatedProxyURL, err := pool.TranslateProxyNameToProxyURL(proxyURL)
-			if err != nil {
-				log.Printf("Error while translating proxy url %s", proxyURL)
-				continue
-			}
-
-			go pool.CheckProxy(translatedProxyURL, priority, ch)
+			go pool.CheckProxy(proxyURL, priority, ch)
 			numberRequests++
 		}
 	}
