@@ -28,14 +28,37 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 }
 
 func TestProxy(ctx *fasthttp.RequestCtx) {
-	// weight, _ := strconv.Atoi(string(ctx.QueryArgs().Peek("weight")))
-	// for i := 0; i < 300; i++ {
-	// 	go func(i int) {
-	// 		proxyRes := pool.GetProxyPoolInstance().GetTopPriorityProxy(weight)
-	// 		time.Sleep(10 * time.Millisecond)
-	// 		pool.GetProxyPoolInstance().ExemptProxy(proxyRes.Proxy, i)
-	// 	}(i)
-	// }
+}
+
+func TestProxies(ctx *fasthttp.RequestCtx) {
+	results := make(map[string]pool.HealthCheckResponse)
+
+	ch := make(chan pool.HealthCheckResponse)
+
+	pp := pool.GetProxyPoolInstance()
+	proxies := pp.Proxies
+	numberRequests := 0
+	for priority := range proxies {
+		for _, proxyURL := range proxies[priority] {
+			go pool.CheckProxy(proxyURL, priority, ch)
+			numberRequests++
+		}
+	}
+
+	// getting results
+	for i := 1; i <= numberRequests; i++ {
+		checkResult := <-ch
+		proxyURL := checkResult.ProxyURL
+		results[proxyURL] = checkResult
+		log.Printf("%v : %v", proxyURL, checkResult)
+	}
+
+	jsonStr, err := json.Marshal(results)
+	if err != nil {
+		return
+	}
+
+	fmt.Fprint(ctx, string(jsonStr))
 }
 
 // Index is the index handler
@@ -59,6 +82,7 @@ func RunServer(port string) {
 	router.GET("/", Index)
 	router.GET("/getProxy", GetProxy)
 	router.GET("/testProxy", TestProxy)
+	router.GET("/testProxies", TestProxies)
 	router.GET("/healthz", Healthz)
 	router.POST("/exempt", Exempt)
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-redis/redis_rate/v9"
+	"gitlab.com/crypto_project/core/proxypool_service/src/sources"
 )
 
 type ProxyPool struct {
@@ -19,6 +20,8 @@ type ProxyPool struct {
 	StartupTime     time.Time
 	proxyIndexesMux sync.Mutex
 	proxyStatsMux   sync.Mutex
+
+	StatsdMetrics *sources.StatsdClient
 }
 
 type Proxy struct {

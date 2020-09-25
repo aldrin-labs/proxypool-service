@@ -3,12 +3,22 @@ package pool
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 )
+
+type HTTPResponseStruct struct {
+	Body    interface{}
+	Headers http.Header
+}
 
 func getProxiesFromENV(proxies *[][]string) {
 	proxiesBASE64 := os.Getenv("PROXYLIST")
@@ -46,4 +56,46 @@ func findIP(input string) string {
 	regexPattern := numBlock + "\\." + numBlock + "\\." + numBlock + "\\." + numBlock
 	regEx := regexp.MustCompile(regexPattern)
 	return regEx.FindString(input)
+}
+
+// TranslateProxyNameToProxyURL - input format: http://ip:port@login:pass
+func TranslateProxyNameToProxyURL(proxyName string) (string, error) {
+	splitted := strings.Split(proxyName, "@")
+	if len(splitted) < 2 {
+		return "", errors.New("Wrong URL")
+	}
+
+	ipAndPort := strings.Replace(splitted[0], "http://", "", 1)
+	loginAndPass := splitted[1]
+
+	return "http://" + loginAndPass + "@" + ipAndPort, nil
+}
+
+// MakeHTTPRequestUsingProxy - proxyURL format: http://login:pass@ip:port
+func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.Header) {
+
+	parsedProxyURL, err := url.Parse(proxyURL)
+	if err != nil {
+		log.Println("ProxyURL parse error", err)
+	}
+
+	myClient := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(parsedProxyURL)}}
+
+	var body []byte
+	var headers http.Header
+
+	resp, err := myClient.Get(URL)
+	if err != nil {
+		log.Println("Request error", err)
+		return body, headers
+	}
+
+	defer resp.Body.Close()
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("Request error", err)
+		return body, headers
+	}
+
+	return body, resp.Header
 }

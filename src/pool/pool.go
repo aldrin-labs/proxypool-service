@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redis/redis_rate/v9"
+	"gitlab.com/crypto_project/core/proxypool_service/src/sources"
 )
 
 var proxySingleton *ProxyPool
@@ -65,6 +66,9 @@ func newProxySingleton() *ProxyPool {
 	limiterCtx := context.Background()
 	redisRateLimiter := newRedisLimiter(&limiterCtx)
 
+	statsd := &sources.StatsdClient{}
+	statsd.Init()
+
 	return &ProxyPool{
 		Proxies:             proxies,
 		CurrentProxyIndexes: currentProxyIndexes,
@@ -74,6 +78,7 @@ func newProxySingleton() *ProxyPool {
 		proxyIndexesMux:     sync.Mutex{},
 		proxyStatsMux:       sync.Mutex{},
 		StartupTime:         time.Now(),
+		StatsdMetrics:       statsd,
 	}
 }
 
