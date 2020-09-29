@@ -3,6 +3,7 @@ package pool
 import (
 	"encoding/json"
 	"log"
+	"time"
 )
 
 type BinancePingResponse struct {
@@ -19,6 +20,7 @@ type HealthCheckResponse struct {
 	ProxyPriority     int                  `json:"proxyPriority"`
 	ProxyCountry      string               `json:"proxyCountry"`
 	ProxyRealIP       string               `json:"proxyRealIp"`
+	ResponseTimeMs    int64                `json:"responseTimeMs"`
 	Response          *BinancePingResponse `json:"response"`
 }
 
@@ -34,7 +36,9 @@ func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 
 	realIP, country := getProxyInfo(proxyURL)
 
+	start := time.Now()
 	rawResult, futuresHeaders := MakeHTTPRequestUsingProxy(binanceFapiTimeEndpoint, proxyURL)
+	duration := time.Since(start)
 	_, spotHeaders := MakeHTTPRequestUsingProxy(binanceSpotEndpoint, proxyURL)
 
 	usedWeightFutures := futuresHeaders.Get("X-MBX-USED-WEIGHT-1m")
@@ -49,6 +53,7 @@ func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 		ProxyPriority:     priority,
 		ProxyRealIP:       realIP,
 		ProxyCountry:      country,
+		ResponseTimeMs:    duration.Milliseconds(),
 		Response:          &result,
 	}
 
