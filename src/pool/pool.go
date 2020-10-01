@@ -14,6 +14,7 @@ import (
 )
 
 var proxySingleton *ProxyPool
+var ppMux sync.Mutex
 
 func newRedisLimiter(ctx *context.Context) *redis_rate.Limiter {
 
@@ -83,9 +84,13 @@ func newProxySingleton() *ProxyPool {
 }
 
 func GetProxyPoolInstance() *ProxyPool {
+	ppMux.Lock()
 	if proxySingleton == nil {
+		log.Printf("Creating new PP singleton...")
 		proxySingleton = newProxySingleton()
 	}
+	ppMux.Unlock()
+
 	return proxySingleton
 }
 
