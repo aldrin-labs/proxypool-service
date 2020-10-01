@@ -5,6 +5,7 @@ import (
 	"log"
 	"time"
 
+	"gitlab.com/crypto_project/core/proxypool_service/src/helpers"
 	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
 )
 
@@ -15,9 +16,9 @@ func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 	realIP, country := getProxyInfo(proxyURL)
 
 	start := time.Now()
-	rawResult, futuresHeaders := pool.MakeHTTPRequestUsingProxy(binanceFapiTimeEndpoint, proxyURL)
+	rawResult, futuresHeaders := helpers.MakeHTTPRequestUsingProxy(binanceFapiTimeEndpoint, proxyURL)
 	duration := time.Since(start)
-	_, spotHeaders := pool.MakeHTTPRequestUsingProxy(binanceSpotEndpoint, proxyURL)
+	_, spotHeaders := helpers.MakeHTTPRequestUsingProxy(binanceSpotEndpoint, proxyURL)
 
 	usedWeightFutures := futuresHeaders.Get("X-MBX-USED-WEIGHT-1m")
 	usedWeightSpot := spotHeaders.Get("X-MBX-USED-WEIGHT-1m")
@@ -57,7 +58,7 @@ func getProxyInfo(proxyURL string) (string, string) {
 
 	result := IPCheckResponse{}
 
-	rawResult, _ := pool.MakeHTTPRequestUsingProxy(ipCheckEndpoint, proxyURL)
+	rawResult, _ := helpers.MakeHTTPRequestUsingProxy(ipCheckEndpoint, proxyURL)
 
 	jsonErr := json.Unmarshal(rawResult.([]byte), &result)
 	if jsonErr != nil {
