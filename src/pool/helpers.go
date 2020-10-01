@@ -22,7 +22,7 @@ func getProxiesFromENV(proxies *[][]string) {
 	proxiesBASE64 := os.Getenv("PROXYLIST")
 	log.Println("proxiesBASE64 ", proxiesBASE64)
 	proxiesJSON, err := base64.StdEncoding.DecodeString(string(proxiesBASE64))
-	log.Print("proxiesJSON ", proxiesJSON)
+	// log.Print("proxiesJSON ", proxiesJSON)
 	if err != nil {
 		log.Print("error:", err)
 		return

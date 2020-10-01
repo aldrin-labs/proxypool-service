@@ -1,34 +1,12 @@
-package pool
+package healthcheck
 
 import (
 	"encoding/json"
 	"log"
 	"time"
+
+	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
 )
-
-type BinancePingResponse struct {
-	ServerTime int    `json:"serverTime"`
-	Code       string `json:"code,omitempty"`
-	Msg        string `json:"msg,omitempty"`
-}
-
-type HealthCheckResponse struct {
-	Success           bool                 `json:"success"`
-	UsedSpotWeight    string               `json:"usedSpotWeight"`
-	UsedFuturesWeight string               `json:"usedFuturesWeight"`
-	ProxyURL          string               `json:"proxyURL"`
-	ProxyPriority     int                  `json:"proxyPriority"`
-	ProxyCountry      string               `json:"proxyCountry"`
-	ProxyRealIP       string               `json:"proxyRealIp"`
-	ResponseTimeMs    int64                `json:"responseTimeMs"`
-	Response          *BinancePingResponse `json:"response"`
-}
-
-type IPCheckResponse struct {
-	IP      string `json:"ip"`
-	Country string `json:"country"`
-	CC      string `json:"cc"`
-}
 
 func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 	binanceFapiTimeEndpoint := "https://fapi.binance.com/fapi/v1/time"
@@ -37,9 +15,9 @@ func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 	realIP, country := getProxyInfo(proxyURL)
 
 	start := time.Now()
-	rawResult, futuresHeaders := MakeHTTPRequestUsingProxy(binanceFapiTimeEndpoint, proxyURL)
+	rawResult, futuresHeaders := pool.MakeHTTPRequestUsingProxy(binanceFapiTimeEndpoint, proxyURL)
 	duration := time.Since(start)
-	_, spotHeaders := MakeHTTPRequestUsingProxy(binanceSpotEndpoint, proxyURL)
+	_, spotHeaders := pool.MakeHTTPRequestUsingProxy(binanceSpotEndpoint, proxyURL)
 
 	usedWeightFutures := futuresHeaders.Get("X-MBX-USED-WEIGHT-1m")
 	usedWeightSpot := spotHeaders.Get("X-MBX-USED-WEIGHT-1m")
@@ -79,7 +57,7 @@ func getProxyInfo(proxyURL string) (string, string) {
 
 	result := IPCheckResponse{}
 
-	rawResult, _ := MakeHTTPRequestUsingProxy(ipCheckEndpoint, proxyURL)
+	rawResult, _ := pool.MakeHTTPRequestUsingProxy(ipCheckEndpoint, proxyURL)
 
 	jsonErr := json.Unmarshal(rawResult.([]byte), &result)
 	if jsonErr != nil {
@@ -87,4 +65,51 @@ func getProxyInfo(proxyURL string) (string, string) {
 	}
 
 	return result.IP, result.Country
+}
+
+// warning, this call to binance is not counted in redis rate limiter
+func RunProxiesHealthcheck() {
+	time.Sleep(3 * time.Second)
+	for {
+		log.Printf("Starting proxy healthcheck...")
+
+		results := make(map[string]HealthCheckResponse)
+
+		ch := make(chan HealthCheckResponse)
+
+		pp := pool.GetProxyPoolInstance()
+		proxies := pp.Proxies
+		numberRequests := 0
+		for priority := range proxies {
+			for _, proxyURL := range proxies[priority] {
+				go CheckProxy(proxyURL, priority, ch)
+				numberRequests++
+			}
+		}
+
+		// getting results
+		for i := 1; i <= numberRequests; i++ {
+			checkResult := <-ch
+			proxyURL := checkResult.ProxyURL
+			results[proxyURL] = checkResult
+		}
+
+		healthcheckSuccessful := true
+		for proxyURL, checkResult := range results {
+			if checkResult.Success == false {
+				reportProxyUnhealthy(proxyURL)
+				healthcheckSuccessful = false
+			}
+		}
+
+		if healthcheckSuccessful {
+			log.Printf("Proxies healthcheck successful")
+		}
+
+		time.Sleep(3 * time.Minute)
+	}
+}
+
+func reportProxyUnhealthy(proxyURL string) {
+	log.Printf("Proxy %s is unhealthy", proxyURL)
 }

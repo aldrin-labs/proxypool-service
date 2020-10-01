@@ -10,6 +10,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"gitlab.com/crypto_project/core/proxypool_service/src/api"
+	"gitlab.com/crypto_project/core/proxypool_service/src/healthcheck"
 )
 
 var port = ":5901"
@@ -24,6 +25,8 @@ func main() {
 
 	go api.RunServer(port)
 	wg.Add(1)
+
+	go healthcheck.RunProxiesHealthcheck()
 
 	wg.Wait()
 }
