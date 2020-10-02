@@ -2,11 +2,13 @@ package healthcheck
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
 	"gitlab.com/crypto_project/core/proxypool_service/src/helpers"
 	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
+	"gitlab.com/crypto_project/core/proxypool_service/src/sources"
 )
 
 func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
@@ -112,5 +114,8 @@ func RunProxiesHealthcheck() {
 }
 
 func reportProxyUnhealthy(proxyURL string) {
-	log.Printf("Proxy %s is unhealthy", proxyURL)
+	msg := fmt.Sprintf("Proxy %s is unhealthy", proxyURL)
+	log.Println(msg)
+	promNotifier := sources.GetPrometheusNotifierInstance()
+	promNotifier.Notify(msg, "proxyPoolService")
 }
