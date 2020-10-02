@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"time"
 )
 
 type HTTPResponseStruct struct {
@@ -47,7 +48,10 @@ func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.H
 		log.Println("ProxyURL parse error", err)
 	}
 
-	myClient := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(parsedProxyURL)}}
+	myClient := &http.Client{
+		Transport: &http.Transport{Proxy: http.ProxyURL(parsedProxyURL)},
+		Timeout:   15 * time.Second,
+	}
 
 	var body []byte
 	var headers http.Header
