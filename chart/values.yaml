@@ -37,8 +37,8 @@ shell:
 
 resources:
   limits:
-    cpu: 100m
-    memory: 96Mi
+    cpu: 400m
+    memory: 496Mi
   requests:
-    cpu: 50m
-    memory: 32Mi
+    cpu: 150m
+    memory: 232Mi
