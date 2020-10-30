@@ -55,6 +55,12 @@ spec:
               name: proxypool-secrets
               key: statsd-host
               optional: true
+        - name: ALERT_MANAGER
+          valueFrom:
+            secretKeyRef:
+              name: proxypool-secrets
+              key: alert-manager
+              optional: true
         ports:
         - name: "{{ .Values.service.name }}"
           containerPort: {{ .Values.service.internalPort }}

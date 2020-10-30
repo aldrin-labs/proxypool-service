@@ -2,6 +2,7 @@ package pool
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -10,10 +11,12 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redis/redis_rate/v9"
+	"gitlab.com/crypto_project/core/proxypool_service/src/helpers"
 	"gitlab.com/crypto_project/core/proxypool_service/src/sources"
 )
 
 var proxySingleton *ProxyPool
+var ppMux sync.Mutex
 
 func newRedisLimiter(ctx *context.Context) *redis_rate.Limiter {
 
@@ -38,7 +41,7 @@ func newRedisLimiter(ctx *context.Context) *redis_rate.Limiter {
 
 func newProxySingleton() *ProxyPool {
 	var proxies [][]string
-	getProxiesFromENV(&proxies)
+	helpers.GetProxiesFromENV(&proxies)
 
 	proxyMap := map[int]map[string]*Proxy{}
 	currentProxyIndexes := map[int]int{}
@@ -49,7 +52,7 @@ func newProxySingleton() *ProxyPool {
 	proxyMap[1] = map[string]*Proxy{}
 	currentProxyIndexes[1] = 0
 
-	limit := 600
+	limit := 900
 
 	for i, proxyArr := range proxies {
 		log.Printf("Init %d proxies with %d priority...", len(proxyArr), i)
@@ -83,9 +86,13 @@ func newProxySingleton() *ProxyPool {
 }
 
 func GetProxyPoolInstance() *ProxyPool {
+	ppMux.Lock()
 	if proxySingleton == nil {
+		log.Printf("Creating new PP singleton...")
 		proxySingleton = newProxySingleton()
 	}
+	ppMux.Unlock()
+
 	return proxySingleton
 }
 
@@ -163,6 +170,21 @@ func (pp *ProxyPool) selectProxyByRoundRobin(priority int) *Proxy {
 	pp.proxyIndexesMux.Unlock()
 
 	return proxy
+}
+
+func (pp *ProxyPool) GetStats() []string {
+	stats := []string{}
+	timeSinceStartup := time.Since(pp.StartupTime).Seconds()
+
+	for priority := range pp.ExchangeProxyMap {
+		for _, proxy := range pp.ExchangeProxyMap[priority] {
+			proxyIP := helpers.FindIP(proxy.URL)
+			data := fmt.Sprintf("Proxy %s with priority %d got %f requests/sec on avg \n", proxyIP, priority, float64(proxy.Usages)/timeSinceStartup)
+			stats = append(stats, data)
+		}
+	}
+
+	return stats
 }
 
 func (pp *ProxyPool) reportProxyUsage(proxy *Proxy) {

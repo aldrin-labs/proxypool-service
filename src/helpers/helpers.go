@@ -1,17 +1,14 @@
-package pool
+package helpers
 
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
-	"strings"
 	"time"
 )
 
@@ -20,11 +17,11 @@ type HTTPResponseStruct struct {
 	Headers http.Header
 }
 
-func getProxiesFromENV(proxies *[][]string) {
+func GetProxiesFromENV(proxies *[][]string) {
 	proxiesBASE64 := os.Getenv("PROXYLIST")
 	log.Println("proxiesBASE64 ", proxiesBASE64)
 	proxiesJSON, err := base64.StdEncoding.DecodeString(string(proxiesBASE64))
-	log.Print("proxiesJSON ", proxiesJSON)
+	// log.Print("proxiesJSON ", proxiesJSON)
 	if err != nil {
 		log.Print("error:", err)
 		return
@@ -36,39 +33,11 @@ func getProxiesFromENV(proxies *[][]string) {
 	}
 }
 
-func (pp *ProxyPool) GetStats() []string {
-	stats := []string{}
-	timeSinceStartup := time.Since(pp.StartupTime).Seconds()
-
-	for priority := range pp.ExchangeProxyMap {
-		for _, proxy := range pp.ExchangeProxyMap[priority] {
-			proxyIP := findIP(proxy.URL)
-			data := fmt.Sprintf("Proxy %s with priority %d got %f requests/sec on avg \n", proxyIP, priority, float64(proxy.Usages)/timeSinceStartup)
-			stats = append(stats, data)
-		}
-	}
-
-	return stats
-}
-
-func findIP(input string) string {
+func FindIP(input string) string {
 	numBlock := "(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])"
 	regexPattern := numBlock + "\\." + numBlock + "\\." + numBlock + "\\." + numBlock
 	regEx := regexp.MustCompile(regexPattern)
 	return regEx.FindString(input)
-}
-
-// TranslateProxyNameToProxyURL - input format: http://ip:port@login:pass
-func TranslateProxyNameToProxyURL(proxyName string) (string, error) {
-	splitted := strings.Split(proxyName, "@")
-	if len(splitted) < 2 {
-		return "", errors.New("Wrong URL")
-	}
-
-	ipAndPort := strings.Replace(splitted[0], "http://", "", 1)
-	loginAndPass := splitted[1]
-
-	return "http://" + loginAndPass + "@" + ipAndPort, nil
 }
 
 // MakeHTTPRequestUsingProxy - proxyURL format: http://login:pass@ip:port
@@ -79,7 +48,10 @@ func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.H
 		log.Println("ProxyURL parse error", err)
 	}
 
-	myClient := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(parsedProxyURL)}}
+	myClient := &http.Client{
+		Transport: &http.Transport{Proxy: http.ProxyURL(parsedProxyURL)},
+		Timeout:   15 * time.Second,
+	}
 
 	var body []byte
 	var headers http.Header

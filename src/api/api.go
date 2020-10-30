@@ -8,6 +8,7 @@ import (
 
 	"github.com/buaazp/fasthttprouter"
 	"github.com/valyala/fasthttp"
+	"gitlab.com/crypto_project/core/proxypool_service/src/healthcheck"
 	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
 )
 
@@ -31,16 +32,16 @@ func TestProxy(ctx *fasthttp.RequestCtx) {
 }
 
 func TestProxies(ctx *fasthttp.RequestCtx) {
-	results := make(map[string]pool.HealthCheckResponse)
+	results := make(map[string]healthcheck.HealthCheckResponse)
 
-	ch := make(chan pool.HealthCheckResponse)
+	ch := make(chan healthcheck.HealthCheckResponse)
 
 	pp := pool.GetProxyPoolInstance()
 	proxies := pp.Proxies
 	numberRequests := 0
 	for priority := range proxies {
 		for _, proxyURL := range proxies[priority] {
-			go pool.CheckProxy(proxyURL, priority, ch)
+			go healthcheck.CheckProxy(proxyURL, priority, ch)
 			numberRequests++
 		}
 	}
@@ -50,7 +51,7 @@ func TestProxies(ctx *fasthttp.RequestCtx) {
 		checkResult := <-ch
 		proxyURL := checkResult.ProxyURL
 		results[proxyURL] = checkResult
-		log.Printf("%v : %v", proxyURL, checkResult)
+		// log.Printf("%v : %v", proxyURL, checkResult)
 	}
 
 	jsonStr, err := json.Marshal(results)
@@ -61,7 +62,6 @@ func TestProxies(ctx *fasthttp.RequestCtx) {
 	fmt.Fprint(ctx, string(jsonStr))
 }
 
-// Index is the index handler
 func Index(ctx *fasthttp.RequestCtx) {
 	proxyPool := pool.GetProxyPoolInstance()
 	data := fmt.Sprintf("%v", proxyPool.GetStats())
