@@ -138,7 +138,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 
 	go pp.reportProxyUsage(currentProxy)
 
-	log.Printf("Returning proxy: %s", currentProxyURL)
+	// log.Printf("Returning proxy: %s", currentProxyURL)
 	return ProxyResponse{
 		ProxyURL: currentProxyURL,
 		Counter:  currentProxy.Usages,
