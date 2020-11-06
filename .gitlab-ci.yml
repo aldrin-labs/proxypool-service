@@ -278,7 +278,7 @@ production:
       name="$name-$track"
     fi
 
-    replicas="1"
+    # replicas="1"
     service_enabled="false"
     postgres_enabled="$POSTGRES_ENABLED"
     # canary uses stable db
