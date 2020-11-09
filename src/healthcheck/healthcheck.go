@@ -101,7 +101,10 @@ func RunProxiesHealthcheck() {
 		for proxyURL, checkResult := range results {
 			if checkResult.Success == false {
 				reportProxyUnhealthy(proxyURL)
+				pp.MarkProxyAsUnhealthy(checkResult.ProxyPriority, proxyURL)
 				healthcheckSuccessful = false
+			} else {
+				pp.MarkProxyAsHealthy(checkResult.ProxyPriority, proxyURL)
 			}
 		}
 
