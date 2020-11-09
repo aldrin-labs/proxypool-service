@@ -9,6 +9,7 @@ import (
 
 	"log"
 
+	"github.com/go-errors/errors"
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redis/redis_rate/v9"
 	"gitlab.com/crypto_project/core/proxypool_service/src/helpers"
@@ -104,7 +105,11 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		return ProxyResponse{ProxyURL: "", Counter: 0}
 	}
 
-	currentProxy := pp.SelectProxy(priority)
+	currentProxy, err := pp.SelectProxy(priority)
+	if err != nil {
+		return ProxyResponse{ProxyURL: "", Counter: 0}
+	}
+
 	currentProxyURL := currentProxy.URL
 	retryCounter := 0
 
@@ -206,9 +211,9 @@ func (pp *ProxyPool) MarkProxyAsHealthy(proxyPriority int, proxyURL string) {
 	}
 }
 
-// TODO: add retry count
-func (pp *ProxyPool) SelectProxy(priority int) *Proxy {
+func (pp *ProxyPool) SelectProxy(priority int) (*Proxy, error) {
 	var currentProxy *Proxy
+	var retries = 0
 	for {
 		atLeastOneProxyIsHealthy := pp.AtLeastOneProxyIsHealthy(priority)
 		if atLeastOneProxyIsHealthy {
@@ -227,8 +232,13 @@ func (pp *ProxyPool) SelectProxy(priority int) *Proxy {
 		if currentProxy.Healthy {
 			break
 		}
+
+		if retries > 10 {
+			return nil, errors.New("Failed to select proxy after number of retries")
+		}
+		retries++
 	}
-	return currentProxy
+	return currentProxy, nil
 }
 
 func (pp *ProxyPool) AtLeastOneProxyIsHealthy(priority int) bool {
