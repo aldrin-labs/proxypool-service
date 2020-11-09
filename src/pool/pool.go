@@ -18,6 +18,8 @@ import (
 var proxySingleton *ProxyPool
 var ppMux sync.Mutex
 
+var timeBeforeUnhealthyStatusChangePossibleSec int64 = 10 * 60
+
 func newRedisLimiter(ctx *context.Context) *redis_rate.Limiter {
 
 	host := os.Getenv("REDIS_HOST")
@@ -182,6 +184,7 @@ func (pp *ProxyPool) MarkProxyAsUnhealthy(proxyPriority int, proxyURL string) {
 	if proxiesMap, ok := pp.ExchangeProxyMap[proxyPriority]; ok {
 		if proxy, ok := proxiesMap[proxyURL]; ok {
 			proxy.Healthy = false
+			proxy.HealthStatusLastChange = time.Now().Unix()
 			log.Printf("Proxy with URL %s marked as unhealthy (%d priority)", proxyURL, proxyPriority)
 		} else {
 			log.Printf("Error. No proxy with URL %s found (%d priority)", proxyURL, proxyPriority)
@@ -194,8 +197,13 @@ func (pp *ProxyPool) MarkProxyAsUnhealthy(proxyPriority int, proxyURL string) {
 func (pp *ProxyPool) MarkProxyAsHealthy(proxyPriority int, proxyURL string) {
 	if proxiesMap, ok := pp.ExchangeProxyMap[proxyPriority]; ok {
 		if proxy, ok := proxiesMap[proxyURL]; ok {
-			proxy.Healthy = true
-			log.Printf("Proxy with URL %s marked as healthy (%d priority)", proxyURL, proxyPriority)
+			currentUnixTimestamp := time.Now().Unix()
+
+			if proxy.Healthy == false && currentUnixTimestamp > proxy.HealthStatusLastChange+timeBeforeUnhealthyStatusChangePossibleSec {
+				proxy.Healthy = true
+				proxy.HealthStatusLastChange = currentUnixTimestamp
+				log.Printf("Proxy with URL %s marked as healthy (%d priority)", proxyURL, proxyPriority)
+			}
 		} else {
 			log.Printf("Error. No proxy with URL %s found (%d priority)", proxyURL, proxyPriority)
 		}
