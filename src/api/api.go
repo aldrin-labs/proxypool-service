@@ -72,6 +72,23 @@ func Exempt(ctx *fasthttp.RequestCtx) {
 	// println("called Exempt")
 }
 
+func markProxyUnhealthy(ctx *fasthttp.RequestCtx) {
+	params := &struct {
+		ProxyURL string
+		Priority int
+	}{}
+	err := json.Unmarshal(ctx.PostBody(), params)
+
+	if err != nil {
+		log.Print("Error while parsing POST params: ", err.Error())
+		fmt.Fprint(ctx, "{\"status\": \"ERR\"}")
+		return
+	}
+
+	pool.GetProxyPoolInstance().MarkProxyAsUnhealthy(params.Priority, params.ProxyURL)
+	fmt.Fprint(ctx, "{\"status\": \"OK\"}")
+}
+
 func Healthz(ctx *fasthttp.RequestCtx) {
 	fmt.Fprint(ctx, "alive!\n")
 }
@@ -85,6 +102,7 @@ func RunServer(port string) {
 	router.GET("/testProxies", TestProxies)
 	router.GET("/healthz", Healthz)
 	router.POST("/exempt", Exempt)
+	router.POST("/markProxyUnhealthy", markProxyUnhealthy)
 
 	log.Printf("Listening on port %s", port)
 	log.Fatal(fasthttp.ListenAndServe(port, router.Handler))
