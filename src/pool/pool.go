@@ -104,16 +104,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		return ProxyResponse{ProxyURL: "", Counter: 0}
 	}
 
-	// if next proxy in line marked as unhealthy - get another one
-	var currentProxy *Proxy
-	for {
-		currentProxy = pp.selectProxyByRoundRobin(priority)
-		// TODO: CHECK THAT AT LEAST ONE HEALTHY PROXY AVAILABLE
-		if currentProxy.Healthy {
-			break
-		}
-	}
-
+	currentProxy := pp.SelectProxy(priority)
 	currentProxyURL := currentProxy.URL
 	retryCounter := 0
 
@@ -213,6 +204,40 @@ func (pp *ProxyPool) MarkProxyAsHealthy(proxyPriority int, proxyURL string) {
 	} else {
 		log.Printf("Error. No proxies with %d priority", proxyPriority)
 	}
+}
+
+// TODO: add retry count
+func (pp *ProxyPool) SelectProxy(priority int) *Proxy {
+	var currentProxy *Proxy
+	for {
+		atLeastOneProxyIsHealthy := pp.AtLeastOneProxyIsHealthy(priority)
+		if atLeastOneProxyIsHealthy {
+			currentProxy = pp.selectProxyByRoundRobin(priority)
+		} else {
+			if priority == 0 {
+				// try proxy with lower priority
+				currentProxy = pp.selectProxyByRoundRobin(1)
+			} else {
+				// just wait, nothing more to do, all proxies are unhealthy
+				time.Sleep(10 * time.Second)
+			}
+		}
+
+		// if next proxy in line marked as unhealthy - get another one
+		if currentProxy.Healthy {
+			break
+		}
+	}
+	return currentProxy
+}
+
+func (pp *ProxyPool) AtLeastOneProxyIsHealthy(priority int) bool {
+	for _, proxy := range pp.ExchangeProxyMap[priority] {
+		if proxy.Healthy {
+			return true
+		}
+	}
+	return false
 }
 
 func (pp *ProxyPool) GetStats() []string {
