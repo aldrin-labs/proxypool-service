@@ -104,9 +104,17 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		return ProxyResponse{ProxyURL: "", Counter: 0}
 	}
 
-	currentProxy := pp.selectProxyByRoundRobin(priority)
-	currentProxyURL := currentProxy.URL
+	// if next proxy in line marked as unhealthy - get another one
+	var currentProxy *Proxy
+	for {
+		currentProxy = pp.selectProxyByRoundRobin(priority)
+		// TODO: CHECK THAT AT LEAST ONE HEALTHY PROXY AVAILABLE
+		if currentProxy.Healthy {
+			break
+		}
+	}
 
+	currentProxyURL := currentProxy.URL
 	retryCounter := 0
 
 	for {
@@ -171,11 +179,6 @@ func (pp *ProxyPool) selectProxyByRoundRobin(priority int) *Proxy {
 	proxy := pp.ExchangeProxyMap[priority][currentProxyURL]
 
 	pp.proxyIndexesMux.Unlock()
-
-	// if this proxy marked as unhealthy - get another one
-	if proxy.Healthy == false {
-		proxy = pp.selectProxyByRoundRobin(priority)
-	}
 
 	return proxy
 }
