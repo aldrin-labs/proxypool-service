@@ -11,6 +11,8 @@ import (
 	"gitlab.com/crypto_project/core/proxypool_service/src/sources"
 )
 
+var healthcheckInterval = 20 * time.Second
+
 func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 	binanceFapiTimeEndpoint := "https://fapi.binance.com/fapi/v1/time"
 	binanceSpotEndpoint := "https://api.binance.com/api/v3/exchangeInfo"
@@ -112,7 +114,7 @@ func RunProxiesHealthcheck() {
 			log.Printf("Proxies healthcheck successful")
 		}
 
-		time.Sleep(3 * time.Minute)
+		time.Sleep(healthcheckInterval)
 	}
 }
 
