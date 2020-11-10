@@ -76,7 +76,8 @@ func getProxyInfo(proxyURL string) (string, string) {
 func RunProxiesHealthcheck() {
 	time.Sleep(3 * time.Second)
 	for {
-		log.Printf("Starting proxy healthcheck...")
+		hcStart := time.Now()
+		// log.Printf("Starting proxy healthcheck...")
 
 		results := make(map[string]HealthCheckResponse)
 
@@ -111,7 +112,8 @@ func RunProxiesHealthcheck() {
 		}
 
 		if healthcheckSuccessful {
-			log.Printf("Proxies healthcheck successful")
+			duration := time.Since(hcStart)
+			log.Printf("Proxies healthcheck successful: %s", duration)
 		}
 
 		time.Sleep(healthcheckInterval)
