@@ -89,6 +89,20 @@ func markProxyUnhealthy(ctx *fasthttp.RequestCtx) {
 	fmt.Fprint(ctx, "{\"status\": \"OK\"}")
 }
 
+func GetUnhealthyProxies(ctx *fasthttp.RequestCtx) {
+	proxyPool := pool.GetProxyPoolInstance()
+
+	var data string
+	for _, proxies := range proxyPool.ExchangeProxyMap {
+		for _, proxy := range proxies {
+			if !proxy.Healthy {
+				data += fmt.Sprintf("Proxy %s is unhealthy since %d \n", proxy.URL, proxy.HealthStatusLastChange)
+			}
+		}
+	}
+	fmt.Fprint(ctx, data)
+}
+
 func Healthz(ctx *fasthttp.RequestCtx) {
 	fmt.Fprint(ctx, "alive!\n")
 }
@@ -100,6 +114,7 @@ func RunServer(port string) {
 	router.GET("/getProxy", GetProxy)
 	router.GET("/testProxy", TestProxy)
 	router.GET("/testProxies", TestProxies)
+	router.GET("/getUnhealthy", GetUnhealthyProxies)
 	router.GET("/healthz", Healthz)
 	router.POST("/exempt", Exempt)
 	router.POST("/markProxyUnhealthy", markProxyUnhealthy)
