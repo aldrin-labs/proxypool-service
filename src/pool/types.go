@@ -25,9 +25,11 @@ type ProxyPool struct {
 }
 
 type Proxy struct {
-	URL    string
-	Usages int
-	Limit  int
+	URL                    string
+	Usages                 int
+	Limit                  int
+	Healthy                bool
+	HealthStatusLastChange int64
 }
 
 type ProxyResponse struct {
