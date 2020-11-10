@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,8 +37,11 @@ func newRedisLimiter(ctx *context.Context) *redis_rate.Limiter {
 		DB: 0,
 	})
 
-	pingResult := rdb.Ping(*ctx).String()
-	log.Printf("Redis: %s \n", pingResult)
+	pingResponse := rdb.Ping(*ctx).String()
+	log.Println("Redis:", pingResponse)
+	if strings.Contains(pingResponse, "error") || strings.Contains(pingResponse, "timeout") || strings.Contains(pingResponse, "refused") {
+		log.Fatal("Redis connection error. Exiting...")
+	}
 
 	return redis_rate.NewLimiter(rdb)
 }
