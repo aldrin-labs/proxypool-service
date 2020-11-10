@@ -216,7 +216,8 @@ func (pp *ProxyPool) MarkProxyAsHealthy(proxyPriority int, proxyURL string) {
 }
 
 func (pp *ProxyPool) SelectProxy(priority int) (*Proxy, error) {
-	var currentProxy *Proxy
+	currentProxy := &Proxy{}
+
 	var retries = 0
 	for {
 		atLeastOneProxyIsHealthy := pp.AtLeastOneProxyIsHealthy(priority)
