@@ -17,7 +17,7 @@ func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 	binanceFapiTimeEndpoint := "https://fapi.binance.com/fapi/v1/time"
 	binanceSpotEndpoint := "https://api.binance.com/api/v3/exchangeInfo"
 
-	realIP, country := getProxyInfo(proxyURL)
+	// realIP, country := getProxyInfo(proxyURL)
 
 	start := time.Now()
 	rawResult, futuresHeaders := helpers.MakeHTTPRequestUsingProxy(binanceFapiTimeEndpoint, proxyURL)
@@ -34,10 +34,10 @@ func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 		UsedFuturesWeight: usedWeightFutures,
 		ProxyURL:          proxyURL,
 		ProxyPriority:     priority,
-		ProxyRealIP:       realIP,
-		ProxyCountry:      country,
-		ResponseTimeMs:    duration.Milliseconds(),
-		Response:          &result,
+		// ProxyRealIP:       realIP,
+		// ProxyCountry:      country,
+		ResponseTimeMs: duration.Milliseconds(),
+		Response:       &result,
 	}
 
 	jsonErr := json.Unmarshal(rawResult.([]byte), &result)
