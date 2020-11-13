@@ -14,12 +14,11 @@ type StatsdClient struct {
 
 func (sd *StatsdClient) Init() {
 	host := os.Getenv("STATSD_HOST")
-	port := "8125"
-
 	if host == "" {
-		log.Printf("Warning. Hostname for statsd is empty. No metrics will be sent. Check service ENVs.")
-		return
+		log.Printf("Warning. Hostname for statsd is empty. Using default one.")
+		host = "graphite.infra"
 	}
+	port := "8125"
 
 	log.Printf("Statsd connecting to %s:%s...", host, port)
 
