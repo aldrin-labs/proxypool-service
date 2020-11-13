@@ -106,11 +106,13 @@ func GetProxyPoolInstance() *ProxyPool {
 
 func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse {
 	if pp.Proxies == nil {
+		pp.StatsdMetrics.Inc("pool.empty_proxy_returned")
 		return ProxyResponse{ProxyURL: "", Counter: 0}
 	}
 
 	currentProxy, err := pp.SelectProxy(priority)
 	if err != nil {
+		pp.StatsdMetrics.Inc("pool.empty_proxy_returned")
 		return ProxyResponse{ProxyURL: "", Counter: 0}
 	}
 
@@ -123,10 +125,12 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		if redisError != nil {
 			if retryCounter >= 3 {
 				log.Printf("Critical error! Failed to serve proxies after %d retries", retryCounter)
+				pp.StatsdMetrics.Inc("pool.empty_proxy_returned")
 				return ProxyResponse{ProxyURL: "", Counter: 0}
 			}
 
 			log.Printf("Error while calling AllowN: %s . Retrying...", redisError.Error())
+			pp.StatsdMetrics.Inc("pool.redis_error")
 			retryCounter++
 
 			time.Sleep(time.Duration(3*retryCounter) * time.Second)
@@ -140,9 +144,11 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 
 			if priority == 0 {
 				log.Print("Top priority proxy is blocked. Returning low priority proxy.")
+				pp.StatsdMetrics.Inc("pool.lower_priority_proxy_switch")
 				return pp.GetLowPriorityProxy(weight)
 			}
 
+			pp.StatsdMetrics.Inc("pool.throttled")
 			time.Sleep(res.RetryAfter)
 		}
 	}
@@ -150,6 +156,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 	go pp.reportProxyUsage(currentProxy)
 
 	// log.Printf("Returning proxy: %s", currentProxyURL)
+	pp.StatsdMetrics.Inc("pool.proxy_served")
 	return ProxyResponse{
 		ProxyURL: currentProxyURL,
 		Counter:  currentProxy.Usages,
@@ -189,6 +196,7 @@ func (pp *ProxyPool) MarkProxyAsUnhealthy(proxyPriority int, proxyURL string) {
 			proxy.Healthy = false
 			proxy.HealthStatusLastChange = time.Now().Unix()
 			log.Printf("Proxy with URL %s marked as unhealthy (%d priority)", proxyURL, proxyPriority)
+			pp.StatsdMetrics.Inc("pool.marked_as_unhealthy")
 		} else {
 			log.Printf("Error. No proxy with URL %s found (%d priority)", proxyURL, proxyPriority)
 		}
@@ -206,6 +214,7 @@ func (pp *ProxyPool) MarkProxyAsHealthy(proxyPriority int, proxyURL string) {
 				proxy.Healthy = true
 				proxy.HealthStatusLastChange = currentUnixTimestamp
 				log.Printf("Proxy with URL %s marked as healthy (%d priority)", proxyURL, proxyPriority)
+				pp.StatsdMetrics.Inc("pool.marked_as_healthy")
 			}
 		} else {
 			log.Printf("Error. No proxy with URL %s found (%d priority)", proxyURL, proxyPriority)
