@@ -72,7 +72,7 @@ func getProxyInfo(proxyURL string) (string, string) {
 	return result.IP, result.Country
 }
 
-// warning, this call to binance is not counted in redis rate limiter
+// warning, this call to binance is not counted in redis rate limiter (but takes only "1" weigth)
 func RunProxiesHealthcheck() {
 	time.Sleep(3 * time.Second)
 	for {
@@ -106,6 +106,7 @@ func RunProxiesHealthcheck() {
 				reportProxyUnhealthy(proxyURL)
 				pp.MarkProxyAsUnhealthy(checkResult.ProxyPriority, proxyURL)
 				healthcheckSuccessful = false
+				pp.GetMetricsClient().Inc("healthcheck.unhealthy_proxy")
 			} else {
 				pp.MarkProxyAsHealthy(checkResult.ProxyPriority, proxyURL)
 			}
@@ -114,6 +115,10 @@ func RunProxiesHealthcheck() {
 		if healthcheckSuccessful {
 			duration := time.Since(hcStart)
 			log.Printf("Proxies healthcheck successful: %s", duration)
+			pp.GetMetricsClient().Inc("healthcheck.success")
+			pp.GetMetricsClient().Timing("healthcheck.duration", int64(duration.Seconds()))
+		} else {
+			pp.GetMetricsClient().Inc("healthcheck.failure")
 		}
 
 		time.Sleep(healthcheckInterval)

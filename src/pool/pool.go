@@ -279,6 +279,10 @@ func (pp *ProxyPool) GetStats() []string {
 	return stats
 }
 
+func (pp *ProxyPool) GetMetricsClient() *sources.StatsdClient {
+	return pp.StatsdMetrics
+}
+
 func (pp *ProxyPool) reportProxyUsage(proxy *Proxy) {
 	pp.proxyStatsMux.Lock()
 	proxy.Usages++
