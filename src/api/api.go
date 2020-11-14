@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/buaazp/fasthttprouter"
 	"github.com/valyala/fasthttp"
@@ -13,6 +14,7 @@ import (
 )
 
 func GetProxy(ctx *fasthttp.RequestCtx) {
+	start := time.Now()
 	ctx.SetContentType("application/json; charset=utf8")
 
 	priority, err := strconv.Atoi(string(ctx.QueryArgs().Peek("priority")))
@@ -23,8 +25,13 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 	}
 
 	// log.Printf("Got GetProxyByPriority request with %d priority and %d weight from %s", priority, weight, ctx.RemoteIP())
+	pp := pool.GetProxyPoolInstance()
+	proxy := pp.GetProxyByPriority(priority, weight)
 
-	jsonStr, _ := json.Marshal(pool.GetProxyPoolInstance().GetProxyByPriority(priority, weight))
+	duration := time.Since(start)
+	pp.GetMetricsClient().Timing("api.getProxy.duration", int64(duration.Seconds()))
+
+	jsonStr, _ := json.Marshal(proxy)
 	_, _ = fmt.Fprint(ctx, string(jsonStr))
 }
 
