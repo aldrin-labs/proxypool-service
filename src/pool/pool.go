@@ -140,7 +140,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		if res.Allowed > 0 {
 			break
 		} else {
-			log.Println("Not allowed. Retry in:", res.RetryAfter)
+			log.Println("All proxies are busy. Throttling for:", res.RetryAfter)
 
 			if priority == 0 {
 				log.Print("Top priority proxy is blocked. Returning low priority proxy.")
