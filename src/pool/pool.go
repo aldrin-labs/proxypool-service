@@ -20,7 +20,7 @@ import (
 var proxySingleton *ProxyPool
 var ppMux sync.Mutex
 
-var timeBeforeUnhealthyStatusChangePossibleSec int64 = 10 * 60
+var timeBeforeUnhealthyStatusChangePossibleSec int64 = 3 * 60
 
 func newRedisLimiter(ctx *context.Context) *redis_rate.Limiter {
 
