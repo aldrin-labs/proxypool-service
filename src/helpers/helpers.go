@@ -41,7 +41,7 @@ func FindIP(input string) string {
 }
 
 // MakeHTTPRequestUsingProxy - proxyURL format: http://login:pass@ip:port
-func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.Header) {
+func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.Header, error) {
 
 	parsedProxyURL, err := url.Parse(proxyURL)
 	if err != nil {
@@ -59,15 +59,15 @@ func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.H
 	resp, err := myClient.Get(URL)
 	if err != nil {
 		log.Println("Request error", err)
-		return body, headers
+		return body, headers, err
 	}
 
 	defer resp.Body.Close()
 	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Println("Request error", err)
-		return body, headers
+		return body, headers, err
 	}
 
-	return body, resp.Header
+	return body, resp.Header, nil
 }

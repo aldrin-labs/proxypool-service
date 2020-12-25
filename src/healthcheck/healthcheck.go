@@ -19,16 +19,31 @@ func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 
 	// realIP, country := getProxyInfo(proxyURL)
 
+	hcResponse := HealthCheckResponse{
+		Success:       false,
+		ProxyURL:      proxyURL,
+		ProxyPriority: priority,
+	}
+
 	start := time.Now()
-	rawResult, futuresHeaders := helpers.MakeHTTPRequestUsingProxy(binanceFapiTimeEndpoint, proxyURL)
+	rawResult, futuresHeaders, err := helpers.MakeHTTPRequestUsingProxy(binanceFapiTimeEndpoint, proxyURL)
+	if err != nil {
+		ch <- hcResponse
+		return
+	}
+
 	duration := time.Since(start)
-	_, spotHeaders := helpers.MakeHTTPRequestUsingProxy(binanceSpotEndpoint, proxyURL)
+	_, spotHeaders, err := helpers.MakeHTTPRequestUsingProxy(binanceSpotEndpoint, proxyURL)
+	if err != nil {
+		ch <- hcResponse
+		return
+	}
 
 	usedWeightFutures := futuresHeaders.Get("X-MBX-USED-WEIGHT-1m")
 	usedWeightSpot := spotHeaders.Get("X-MBX-USED-WEIGHT-1m")
 
 	result := BinancePingResponse{}
-	hcResponse := HealthCheckResponse{
+	hcResponse = HealthCheckResponse{
 		Success:           false,
 		UsedSpotWeight:    usedWeightSpot,
 		UsedFuturesWeight: usedWeightFutures,
@@ -62,7 +77,10 @@ func getProxyInfo(proxyURL string) (string, string) {
 
 	result := IPCheckResponse{}
 
-	rawResult, _ := helpers.MakeHTTPRequestUsingProxy(ipCheckEndpoint, proxyURL)
+	rawResult, _, err := helpers.MakeHTTPRequestUsingProxy(ipCheckEndpoint, proxyURL)
+	if err != nil {
+		return "", ""
+	}
 
 	jsonErr := json.Unmarshal(rawResult.([]byte), &result)
 	if jsonErr != nil {
