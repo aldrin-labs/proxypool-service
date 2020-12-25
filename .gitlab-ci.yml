@@ -328,7 +328,7 @@ production:
     #apk add glibc-2.23-r3.apk
     #rm glibc-2.23-r3.apk
 
-    curl "https://kubernetes-helm.storage.googleapis.com/helm-v${HELM_VERSION}-linux-amd64.tar.gz" | tar zx
+    curl "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" | tar zx
     mv linux-amd64/helm /usr/bin/
     helm version --client
 
@@ -364,7 +364,7 @@ production:
       auto_chart_name="chart"
     fi
 
-    helm init --client-only
+    helm init --client-only --stable-repo-url https://charts.helm.sh/stable
     helm repo add gitlab https://charts.gitlab.io
     if [[ ! -d "$auto_chart" ]]; then
       helm fetch ${auto_chart} --untar
