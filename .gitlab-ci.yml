@@ -330,7 +330,7 @@ production:
 
     curl "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" | tar zx
     mv linux-amd64/helm /usr/bin/
-    helm version --client --stable-repo-url https://charts.helm.sh/stable
+    helm version --client
 
     curl -L -o /usr/bin/kubectl "https://storage.googleapis.com/kubernetes-release/release/v${KUBERNETES_VERSION}/bin/linux/amd64/kubectl"
     chmod +x /usr/bin/kubectl
