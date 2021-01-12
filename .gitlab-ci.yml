@@ -364,7 +364,7 @@ production:
       auto_chart_name="chart"
     fi
 
-    helm init --client-only --stable-repo-url https://charts.helm.sh/stable
+    helm init --client-only
     helm repo add gitlab https://charts.gitlab.io
     if [[ ! -d "$auto_chart" ]]; then
       helm fetch ${auto_chart} --untar
