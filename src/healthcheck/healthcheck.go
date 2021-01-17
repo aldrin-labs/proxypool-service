@@ -3,7 +3,7 @@ package healthcheck
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"time"
 
 	"gitlab.com/crypto_project/core/proxypool_service/src/helpers"
@@ -57,7 +57,7 @@ func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 
 	jsonErr := json.Unmarshal(rawResult.([]byte), &result)
 	if jsonErr != nil {
-		log.Print("Json decode error:", rawResult)
+		loggly_client.GetInstance().Info("Json decode error:", rawResult)
 		ch <- hcResponse
 		return
 	}
@@ -84,7 +84,7 @@ func getProxyInfo(proxyURL string) (string, string) {
 
 	jsonErr := json.Unmarshal(rawResult.([]byte), &result)
 	if jsonErr != nil {
-		log.Printf("Json decode error: %s", jsonErr.Error())
+		loggly_client.GetInstance().Infof("Json decode error: %s", jsonErr.Error())
 	}
 
 	return result.IP, result.Country
@@ -95,7 +95,7 @@ func RunProxiesHealthcheck() {
 	time.Sleep(3 * time.Second)
 	for {
 		hcStart := time.Now()
-		// log.Printf("Starting proxy healthcheck...")
+		// loggly_client.GetInstance().Infof("Starting proxy healthcheck...")
 
 		results := make(map[string]HealthCheckResponse)
 
@@ -132,7 +132,7 @@ func RunProxiesHealthcheck() {
 
 		if healthcheckSuccessful {
 			duration := time.Since(hcStart)
-			log.Printf("Proxies healthcheck successful: %s", duration)
+			loggly_client.GetInstance().Infof("Proxies healthcheck successful: %s", duration)
 			pp.GetMetricsClient().Inc("healthcheck.success")
 			pp.GetMetricsClient().Timing("healthcheck.duration", int64(duration.Seconds()))
 		} else {
@@ -145,7 +145,7 @@ func RunProxiesHealthcheck() {
 
 func reportProxyUnhealthy(proxyURL string) {
 	msg := fmt.Sprintf("Proxy %s is unhealthy", proxyURL)
-	log.Println(msg)
+	loggly_client.GetInstance().Info(msg)
 	promNotifier := sources.GetPrometheusNotifierInstance()
 	promNotifier.Notify(msg, "proxyPoolService")
 }
