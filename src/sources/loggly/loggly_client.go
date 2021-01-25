@@ -25,7 +25,6 @@ func GetInstance() *LogglyClient {
 func (sd *LogglyClient) init() {
 	// TODO: Add LOGGLY to env & secrets
 	// host := os.Getenv("LOGGLY_TOKEN")
-
 	environment := os.Getenv("ENVIRONMENT")
 
 	sd.Client = loggly.New("86c8b2ca-742d-452e-99d6-030d862d6372", "proxypool-service", environment)
@@ -36,11 +35,7 @@ func (sd *LogglyClient) Info(a ...interface{}) {
 	msg := fmt.Sprint(a...)
 	log.Println(msg)
 	if sd.Client != nil {
-		err := sd.Client.Info(msg)
-		if err != nil {
-			log.Fatal(err)
-		}
-		sd.Client.Flush()
+		go sd.sendMessageToLoggly(msg)
 	}
 }
 
@@ -48,22 +43,23 @@ func (sd *LogglyClient) Infof(format string, a ...interface{}) {
 	msg := fmt.Sprintf(format, a...)
 	log.Println(msg)
 	if sd.Client != nil {
-		err := sd.Client.Info(msg)
-		if err != nil {
-			log.Fatal(err)
-		}
-		sd.Client.Flush()
+		go sd.sendMessageToLoggly(msg)
 	}
 }
 
 func (sd *LogglyClient) Fatal(a ...interface{}) {
 	msg := fmt.Sprint(a...)
 	if sd.Client != nil {
-		err := sd.Client.Info(msg)
-		if err != nil {
-			log.Fatal(err)
-		}
-		sd.Client.Flush()
+		sd.sendMessageToLoggly(msg)
 	}
 	log.Fatal(msg)
+}
+
+// this method should be kept unexported, don't use outside loggly_client module
+func (sd *LogglyClient) sendMessageToLoggly(msg string) {
+	err := sd.Client.Info(msg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	sd.Client.Flush()
 }
