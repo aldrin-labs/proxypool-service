@@ -3,12 +3,11 @@ package pool
 import (
 	"context"
 	"fmt"
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"os"
 	"strings"
 	"sync"
 	"time"
-
-	"log"
 
 	"github.com/go-errors/errors"
 	"github.com/go-redis/redis/v8"
@@ -20,7 +19,7 @@ import (
 var proxySingleton *ProxyPool
 var ppMux sync.Mutex
 
-var timeBeforeUnhealthyStatusChangePossibleSec int64 = 10 * 60
+var timeBeforeUnhealthyStatusChangePossibleSec int64 = 3 * 60
 
 func newRedisLimiter(ctx *context.Context) *redis_rate.Limiter {
 
@@ -28,7 +27,7 @@ func newRedisLimiter(ctx *context.Context) *redis_rate.Limiter {
 	port := os.Getenv("REDIS_PORT")
 	addr := host + ":" + port
 
-	log.Printf("Connectiong to redis on %s", addr)
+	loggly_client.GetInstance().Infof("Connectiong to redis on %s", addr)
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,
@@ -38,9 +37,9 @@ func newRedisLimiter(ctx *context.Context) *redis_rate.Limiter {
 	})
 
 	pingResponse := rdb.Ping(*ctx).String()
-	log.Println("Redis:", pingResponse)
+	loggly_client.GetInstance().Info("Redis:", pingResponse)
 	if strings.Contains(pingResponse, "error") || strings.Contains(pingResponse, "timeout") || strings.Contains(pingResponse, "refused") {
-		log.Fatal("Redis connection error. Exiting...")
+		loggly_client.GetInstance().Fatal("Redis connection error. Exiting...")
 	}
 
 	return redis_rate.NewLimiter(rdb)
@@ -62,7 +61,7 @@ func newProxySingleton() *ProxyPool {
 	limit := 900
 
 	for i, proxyArr := range proxies {
-		log.Printf("Init %d proxies with %d priority...", len(proxyArr), i)
+		loggly_client.GetInstance().Infof("Init %d proxies with %d priority...", len(proxyArr), i)
 
 		for _, proxyURL := range proxyArr {
 			proxyMap[i][proxyURL] = &Proxy{
@@ -96,7 +95,7 @@ func newProxySingleton() *ProxyPool {
 func GetProxyPoolInstance() *ProxyPool {
 	ppMux.Lock()
 	if proxySingleton == nil {
-		log.Printf("Creating new PP singleton...")
+		loggly_client.GetInstance().Infof("Creating new PP singleton...")
 		proxySingleton = newProxySingleton()
 	}
 	ppMux.Unlock()
@@ -106,11 +105,13 @@ func GetProxyPoolInstance() *ProxyPool {
 
 func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse {
 	if pp.Proxies == nil {
+		pp.StatsdMetrics.Inc("pool.empty_proxy_returned")
 		return ProxyResponse{ProxyURL: "", Counter: 0}
 	}
 
 	currentProxy, err := pp.SelectProxy(priority)
 	if err != nil {
+		pp.StatsdMetrics.Inc("pool.empty_proxy_returned")
 		return ProxyResponse{ProxyURL: "", Counter: 0}
 	}
 
@@ -122,11 +123,13 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		res, redisError := pp.RedisRateLimiter.AllowN(*pp.LimiterCtx, currentProxyURL, redis_rate.PerMinute(currentProxy.Limit), weight)
 		if redisError != nil {
 			if retryCounter >= 3 {
-				log.Printf("Critical error! Failed to serve proxies after %d retries", retryCounter)
+				loggly_client.GetInstance().Infof("Critical error! Failed to serve proxies after %d retries", retryCounter)
+				pp.StatsdMetrics.Inc("pool.empty_proxy_returned")
 				return ProxyResponse{ProxyURL: "", Counter: 0}
 			}
 
-			log.Printf("Error while calling AllowN: %s . Retrying...", redisError.Error())
+			loggly_client.GetInstance().Infof("Error while calling AllowN: %s . Retrying...", redisError.Error())
+			pp.StatsdMetrics.Inc("pool.redis_error")
 			retryCounter++
 
 			time.Sleep(time.Duration(3*retryCounter) * time.Second)
@@ -136,20 +139,23 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		if res.Allowed > 0 {
 			break
 		} else {
-			log.Println("Not allowed. Retry in:", res.RetryAfter)
+			loggly_client.GetInstance().Info("All proxies are busy. Throttling for:", res.RetryAfter)
 
 			if priority == 0 {
-				log.Print("Top priority proxy is blocked. Returning low priority proxy.")
+				loggly_client.GetInstance().Info("Top priority proxy is blocked. Returning low priority proxy.")
+				pp.StatsdMetrics.Inc("pool.lower_priority_proxy_switch")
 				return pp.GetLowPriorityProxy(weight)
 			}
 
+			pp.StatsdMetrics.Inc("pool.throttled")
 			time.Sleep(res.RetryAfter)
 		}
 	}
 
 	go pp.reportProxyUsage(currentProxy)
 
-	// log.Printf("Returning proxy: %s", currentProxyURL)
+	// loggly_client.GetInstance().Infof("Returning proxy: %s", currentProxyURL)
+	pp.StatsdMetrics.Inc("pool.proxy_served")
 	return ProxyResponse{
 		ProxyURL: currentProxyURL,
 		Counter:  currentProxy.Usages,
@@ -188,12 +194,13 @@ func (pp *ProxyPool) MarkProxyAsUnhealthy(proxyPriority int, proxyURL string) {
 		if proxy, ok := proxiesMap[proxyURL]; ok {
 			proxy.Healthy = false
 			proxy.HealthStatusLastChange = time.Now().Unix()
-			log.Printf("Proxy with URL %s marked as unhealthy (%d priority)", proxyURL, proxyPriority)
+			loggly_client.GetInstance().Infof("Proxy with URL %s marked as unhealthy (%d priority)", proxyURL, proxyPriority)
+			pp.StatsdMetrics.Inc("pool.marked_as_unhealthy")
 		} else {
-			log.Printf("Error. No proxy with URL %s found (%d priority)", proxyURL, proxyPriority)
+			loggly_client.GetInstance().Infof("Error. No proxy with URL %s found (%d priority)", proxyURL, proxyPriority)
 		}
 	} else {
-		log.Printf("Error. No proxies with %d priority", proxyPriority)
+		loggly_client.GetInstance().Infof("Error. No proxies with %d priority", proxyPriority)
 	}
 }
 
@@ -205,13 +212,14 @@ func (pp *ProxyPool) MarkProxyAsHealthy(proxyPriority int, proxyURL string) {
 			if proxy.Healthy == false && currentUnixTimestamp > proxy.HealthStatusLastChange+timeBeforeUnhealthyStatusChangePossibleSec {
 				proxy.Healthy = true
 				proxy.HealthStatusLastChange = currentUnixTimestamp
-				log.Printf("Proxy with URL %s marked as healthy (%d priority)", proxyURL, proxyPriority)
+				loggly_client.GetInstance().Infof("Proxy with URL %s marked as healthy (%d priority)", proxyURL, proxyPriority)
+				pp.StatsdMetrics.Inc("pool.marked_as_healthy")
 			}
 		} else {
-			log.Printf("Error. No proxy with URL %s found (%d priority)", proxyURL, proxyPriority)
+			loggly_client.GetInstance().Infof("Error. No proxy with URL %s found (%d priority)", proxyURL, proxyPriority)
 		}
 	} else {
-		log.Printf("Error. No proxies with %d priority", proxyPriority)
+		loggly_client.GetInstance().Infof("Error. No proxies with %d priority", proxyPriority)
 	}
 }
 
@@ -268,6 +276,10 @@ func (pp *ProxyPool) GetStats() []string {
 	}
 
 	return stats
+}
+
+func (pp *ProxyPool) GetMetricsClient() *sources.StatsdClient {
+	return pp.StatsdMetrics
 }
 
 func (pp *ProxyPool) reportProxyUsage(proxy *Proxy) {

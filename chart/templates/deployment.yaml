@@ -61,6 +61,12 @@ spec:
               name: proxypool-secrets
               key: alert-manager
               optional: true
+        - name: ENVIRONMENT
+          valueFrom:
+            secretKeyRef:
+              name: portfolio-secrets
+              key: environment
+              optional: true
         ports:
         - name: "{{ .Values.service.name }}"
           containerPort: {{ .Values.service.internalPort }}

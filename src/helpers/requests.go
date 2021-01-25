@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"io/ioutil"
-	"log"
 	"net/http"
 )
 
 func MakeGetRequest(baseURL string, apiMethod string, params map[string]string) (interface{}, error) {
 	URL := baseURL + "/" + apiMethod
 
-	log.Printf("[HTTP] Making GET request to %s...", URL)
+	loggly_client.GetInstance().Infof("[HTTP] Making GET request to %s...", URL)
 
 	if len(params) > 0 {
 		URL = URL + "?"
@@ -32,11 +32,11 @@ func MakeGetRequest(baseURL string, apiMethod string, params map[string]string) 
 func MakePostRequest(baseURL string, apiMethod string, data interface{}) (interface{}, error) {
 	URL := baseURL + "/" + apiMethod
 
-	log.Printf("[HTTP] Making POST request to %s...", URL)
+	loggly_client.GetInstance().Infof("[HTTP] Making POST request to %s...", URL)
 
 	jsonStr, err := json.Marshal(data)
 	if err != nil {
-		log.Printf("[HTTP] Error while encoding JSON in POST request: %s", err.Error())
+		loggly_client.GetInstance().Infof("[HTTP] Error while encoding JSON in POST request: %s", err.Error())
 		return nil, err
 	}
 

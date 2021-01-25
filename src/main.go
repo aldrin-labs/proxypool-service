@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"os"
 	"os/signal"
 	"sync"
@@ -43,11 +43,10 @@ func shutdownHandler(wg *sync.WaitGroup) {
 
 	// waiting for shutdown signal
 	<-sigint
-
-	log.Printf("Starting instance shutdown...")
+	loggly_client.GetInstance().Infof("Starting instance shutdown...")
 
 	time.Sleep(10 * time.Second)
 
-	log.Printf("Wait group done...")
+	loggly_client.GetInstance().Infof("Wait group done...")
 	wg.Done()
 }

@@ -3,7 +3,7 @@ package healthcheck
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"time"
 
 	"gitlab.com/crypto_project/core/proxypool_service/src/helpers"
@@ -19,16 +19,31 @@ func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 
 	// realIP, country := getProxyInfo(proxyURL)
 
+	hcResponse := HealthCheckResponse{
+		Success:       false,
+		ProxyURL:      proxyURL,
+		ProxyPriority: priority,
+	}
+
 	start := time.Now()
-	rawResult, futuresHeaders := helpers.MakeHTTPRequestUsingProxy(binanceFapiTimeEndpoint, proxyURL)
+	rawResult, futuresHeaders, err := helpers.MakeHTTPRequestUsingProxy(binanceFapiTimeEndpoint, proxyURL)
+	if err != nil {
+		ch <- hcResponse
+		return
+	}
+
 	duration := time.Since(start)
-	_, spotHeaders := helpers.MakeHTTPRequestUsingProxy(binanceSpotEndpoint, proxyURL)
+	_, spotHeaders, err := helpers.MakeHTTPRequestUsingProxy(binanceSpotEndpoint, proxyURL)
+	if err != nil {
+		ch <- hcResponse
+		return
+	}
 
 	usedWeightFutures := futuresHeaders.Get("X-MBX-USED-WEIGHT-1m")
 	usedWeightSpot := spotHeaders.Get("X-MBX-USED-WEIGHT-1m")
 
 	result := BinancePingResponse{}
-	hcResponse := HealthCheckResponse{
+	hcResponse = HealthCheckResponse{
 		Success:           false,
 		UsedSpotWeight:    usedWeightSpot,
 		UsedFuturesWeight: usedWeightFutures,
@@ -42,7 +57,7 @@ func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 
 	jsonErr := json.Unmarshal(rawResult.([]byte), &result)
 	if jsonErr != nil {
-		log.Print("Json decode error:", rawResult)
+		loggly_client.GetInstance().Info("Json decode error:", rawResult)
 		ch <- hcResponse
 		return
 	}
@@ -62,22 +77,25 @@ func getProxyInfo(proxyURL string) (string, string) {
 
 	result := IPCheckResponse{}
 
-	rawResult, _ := helpers.MakeHTTPRequestUsingProxy(ipCheckEndpoint, proxyURL)
+	rawResult, _, err := helpers.MakeHTTPRequestUsingProxy(ipCheckEndpoint, proxyURL)
+	if err != nil {
+		return "", ""
+	}
 
 	jsonErr := json.Unmarshal(rawResult.([]byte), &result)
 	if jsonErr != nil {
-		log.Printf("Json decode error: %s", jsonErr.Error())
+		loggly_client.GetInstance().Infof("Json decode error: %s", jsonErr.Error())
 	}
 
 	return result.IP, result.Country
 }
 
-// warning, this call to binance is not counted in redis rate limiter
+// warning, this call to binance is not counted in redis rate limiter (but takes only "1" weigth)
 func RunProxiesHealthcheck() {
 	time.Sleep(3 * time.Second)
 	for {
 		hcStart := time.Now()
-		// log.Printf("Starting proxy healthcheck...")
+		// loggly_client.GetInstance().Infof("Starting proxy healthcheck...")
 
 		results := make(map[string]HealthCheckResponse)
 
@@ -106,6 +124,7 @@ func RunProxiesHealthcheck() {
 				reportProxyUnhealthy(proxyURL)
 				pp.MarkProxyAsUnhealthy(checkResult.ProxyPriority, proxyURL)
 				healthcheckSuccessful = false
+				pp.GetMetricsClient().Inc("healthcheck.unhealthy_proxy")
 			} else {
 				pp.MarkProxyAsHealthy(checkResult.ProxyPriority, proxyURL)
 			}
@@ -113,7 +132,11 @@ func RunProxiesHealthcheck() {
 
 		if healthcheckSuccessful {
 			duration := time.Since(hcStart)
-			log.Printf("Proxies healthcheck successful: %s", duration)
+			loggly_client.GetInstance().Infof("Proxies healthcheck successful: %s", duration)
+			pp.GetMetricsClient().Inc("healthcheck.success")
+			pp.GetMetricsClient().Timing("healthcheck.duration", int64(duration.Seconds()))
+		} else {
+			pp.GetMetricsClient().Inc("healthcheck.failure")
 		}
 
 		time.Sleep(healthcheckInterval)
@@ -122,7 +145,7 @@ func RunProxiesHealthcheck() {
 
 func reportProxyUnhealthy(proxyURL string) {
 	msg := fmt.Sprintf("Proxy %s is unhealthy", proxyURL)
-	log.Println(msg)
+	loggly_client.GetInstance().Info(msg)
 	promNotifier := sources.GetPrometheusNotifierInstance()
 	promNotifier.Notify(msg, "proxyPoolService")
 }

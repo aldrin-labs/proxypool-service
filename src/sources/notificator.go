@@ -1,7 +1,7 @@
 package sources
 
 import (
-	"log"
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"os"
 	"time"
 
@@ -73,17 +73,17 @@ func (am *promAlertManager) Notify(message string, source string) {
 
 	// Error %!(EXTRA string=unexpected end of JSON input) is fine, it just returns empty response even if alert was created
 	// if err != nil {
-	// 	log.Printf("[Notify] Error: ", err.Error())
+	// 	loggly_client.GetInstance().Infof("[Notify] Error: ", err.Error())
 	// }
-	// log.Printf("%v", result)
+	// loggly_client.GetInstance().Infof("%v", result)
 
-	log.Printf("[Notify] Message sent from %s", source)
+	loggly_client.GetInstance().Infof("[Notify] Message sent from %s", source)
 }
 
 func (am *promAlertManager) GetStatus() {
 	result, err := helpers.MakeGetRequest(am.Url+am.ApiPath, "status", nil)
 	if err != nil {
-		log.Printf("Error: %s", err.Error())
+		loggly_client.GetInstance().Infof("Error: %s", err.Error())
 	}
-	log.Printf("%v", result)
+	loggly_client.GetInstance().Infof("%v", result)
 }
