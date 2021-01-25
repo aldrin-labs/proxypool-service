@@ -3,8 +3,8 @@ package helpers
 import (
 	"encoding/base64"
 	"encoding/json"
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,16 +19,15 @@ type HTTPResponseStruct struct {
 
 func GetProxiesFromENV(proxies *[][]string) {
 	proxiesBASE64 := os.Getenv("PROXYLIST")
-	log.Println("proxiesBASE64 ", proxiesBASE64)
+	loggly_client.GetInstance().Info("proxiesBASE64 ", proxiesBASE64)
 	proxiesJSON, err := base64.StdEncoding.DecodeString(string(proxiesBASE64))
-	// log.Print("proxiesJSON ", proxiesJSON)
 	if err != nil {
-		log.Print("error:", err)
+		loggly_client.GetInstance().Info("error:", err)
 		return
 	}
 	jsonErr := json.Unmarshal([]byte(proxiesJSON), proxies)
 	if jsonErr != nil {
-		log.Print("json error:", jsonErr)
+		loggly_client.GetInstance().Info("json error:", jsonErr)
 		return
 	}
 }
@@ -45,7 +44,7 @@ func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.H
 
 	parsedProxyURL, err := url.Parse(proxyURL)
 	if err != nil {
-		log.Println("ProxyURL parse error", err)
+		loggly_client.GetInstance().Info("ProxyURL parse error", err)
 	}
 
 	myClient := &http.Client{
@@ -58,14 +57,14 @@ func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.H
 
 	resp, err := myClient.Get(URL)
 	if err != nil {
-		log.Println("Request error", err)
+		loggly_client.GetInstance().Info("Request error", err)
 		return body, headers, err
 	}
 
 	defer resp.Body.Close()
 	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Println("Request error", err)
+		loggly_client.GetInstance().Info("Request error", err)
 		return body, headers, err
 	}
 

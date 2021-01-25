@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"strconv"
 	"time"
 
@@ -20,11 +20,11 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 	priority, err := strconv.Atoi(string(ctx.QueryArgs().Peek("priority")))
 	weight, err := strconv.Atoi(string(ctx.QueryArgs().Peek("weight")))
 	if err != nil {
-		fmt.Println("error:", err)
+		loggly_client.GetInstance().Info("error:", err)
 		priority = 1
 	}
 
-	// log.Printf("Got GetProxyByPriority request with %d priority and %d weight from %s", priority, weight, ctx.RemoteIP())
+	// loggly_client.GetInstance().Infof("Got GetProxyByPriority request with %d priority and %d weight from %s", priority, weight, ctx.RemoteIP())
 	pp := pool.GetProxyPoolInstance()
 	proxy := pp.GetProxyByPriority(priority, weight)
 
@@ -58,7 +58,7 @@ func TestProxies(ctx *fasthttp.RequestCtx) {
 		checkResult := <-ch
 		proxyURL := checkResult.ProxyURL
 		results[proxyURL] = checkResult
-		// log.Printf("%v : %v", proxyURL, checkResult)
+		// loggly_client.GetInstance().Infof("%v : %v", proxyURL, checkResult)
 	}
 
 	jsonStr, err := json.Marshal(results)
@@ -76,7 +76,7 @@ func Index(ctx *fasthttp.RequestCtx) {
 }
 
 func Exempt(ctx *fasthttp.RequestCtx) {
-	// println("called Exempt")
+	// loggly_client.GetInstance().Info("called Exempt")
 }
 
 func markProxyUnhealthy(ctx *fasthttp.RequestCtx) {
@@ -87,7 +87,7 @@ func markProxyUnhealthy(ctx *fasthttp.RequestCtx) {
 	err := json.Unmarshal(ctx.PostBody(), params)
 
 	if err != nil {
-		log.Print("Error while parsing POST params: ", err.Error())
+		loggly_client.GetInstance().Info("Error while parsing POST params: ", err.Error())
 		fmt.Fprint(ctx, "{\"status\": \"ERR\"}")
 		return
 	}
@@ -126,6 +126,6 @@ func RunServer(port string) {
 	router.POST("/exempt", Exempt)
 	router.POST("/markProxyUnhealthy", markProxyUnhealthy)
 
-	log.Printf("Listening on port %s", port)
-	log.Fatal(fasthttp.ListenAndServe(port, router.Handler))
+	loggly_client.GetInstance().Infof("Listening on port %s", port)
+	loggly_client.GetInstance().Fatal(fasthttp.ListenAndServe(port, router.Handler))
 }
