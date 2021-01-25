@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+
 	// "os"
 	"regexp"
 	"time"
@@ -50,7 +51,7 @@ func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.H
 
 	myClient := &http.Client{
 		Transport: &http.Transport{Proxy: http.ProxyURL(parsedProxyURL)},
-		Timeout:   5 * time.Second,
+		Timeout:   10 * time.Second,
 	}
 
 	var body []byte
