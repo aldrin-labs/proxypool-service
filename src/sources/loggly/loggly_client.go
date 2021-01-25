@@ -2,8 +2,10 @@ package loggly_client
 
 import (
 	"fmt"
-	"github.com/segmentio/go-loggly"
 	"log"
+	"os"
+
+	"github.com/segmentio/go-loggly"
 )
 
 type LogglyClient struct {
@@ -23,7 +25,10 @@ func GetInstance() *LogglyClient {
 func (sd *LogglyClient) init() {
 	// TODO: Add LOGGLY to env & secrets
 	// host := os.Getenv("LOGGLY_TOKEN")
-	sd.Client = loggly.New("86c8b2ca-742d-452e-99d6-030d862d6372", "proxypool-service")
+
+	environment := os.Getenv("ENVIRONMENT")
+
+	sd.Client = loggly.New("86c8b2ca-742d-452e-99d6-030d862d6372", "proxypool-service", environment)
 	log.Println("Loggly client init successful")
 }
 
