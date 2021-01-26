@@ -64,7 +64,7 @@ spec:
         - name: ENVIRONMENT
           valueFrom:
             secretKeyRef:
-              name: portfolio-secrets
+              name: proxypool-secrets
               key: environment
               optional: true
         ports:

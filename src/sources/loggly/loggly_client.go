@@ -25,8 +25,8 @@ func GetInstance() *LogglyClient {
 func (sd *LogglyClient) init() {
 	// TODO: Add LOGGLY to env & secrets
 	// host := os.Getenv("LOGGLY_TOKEN")
-
 	environment := os.Getenv("ENVIRONMENT")
+	fmt.Println("environment: ", environment)
 
 	sd.Client = loggly.New("86c8b2ca-742d-452e-99d6-030d862d6372", "proxypool-service", environment)
 	log.Println("Loggly client init successful")
