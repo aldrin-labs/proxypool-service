@@ -2,8 +2,9 @@ package sources
 
 import (
 	"fmt"
-	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"os"
+
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 
 	"github.com/cactus/go-statsd-client/statsd"
 )
@@ -16,7 +17,7 @@ func (sd *StatsdClient) Init() {
 	host := os.Getenv("STATSD_HOST")
 	if host == "" {
 		loggly_client.GetInstance().Infof("Warning. Hostname for statsd is empty. Using default one.")
-		host = "graphite.infra"
+		host = "statsd-release.infra"
 	}
 	port := "8125"
 
