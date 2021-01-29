@@ -14,7 +14,7 @@ type StatsdClient struct {
 
 func (sd *StatsdClient) Init() {
 	// host := os.Getenv("STATSD_HOST")
-	host := "10-0-2-156.infra.pod.cluster.local"
+	host := "10-0-3-80.infra.pod.cluster.local"
 	if host == "" {
 		loggly_client.GetInstance().Infof("Warning. Hostname for statsd is empty. Using default one.")
 		host = "statsd-release.infra"
