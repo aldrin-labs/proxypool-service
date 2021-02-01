@@ -2,6 +2,7 @@ package sources
 
 import (
 	"fmt"
+	"os"
 
 	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 
@@ -13,8 +14,7 @@ type StatsdClient struct {
 }
 
 func (sd *StatsdClient) Init() {
-	// host := os.Getenv("STATSD_HOST")
-	host := "10-0-3-80.infra.pod.cluster.local"
+	host := os.Getenv("STATSD_HOST")
 	if host == "" {
 		loggly_client.GetInstance().Infof("Warning. Hostname for statsd is empty. Using default one.")
 		host = "statsd-release.infra"
