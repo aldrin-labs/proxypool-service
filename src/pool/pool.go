@@ -3,11 +3,12 @@ package pool
 import (
 	"context"
 	"fmt"
-	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 
 	"github.com/go-errors/errors"
 	"github.com/go-redis/redis/v8"
@@ -114,6 +115,8 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		pp.StatsdMetrics.Inc("pool.empty_proxy_returned")
 		return ProxyResponse{ProxyURL: "", Counter: 0}
 	}
+
+	pp.StatsdMetrics.IncBy("pool.proxy_weight_used", int64(weight))
 
 	currentProxyURL := currentProxy.URL
 	retryCounter := 0
