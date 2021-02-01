@@ -48,6 +48,15 @@ func (sd *StatsdClient) Inc(statName string) {
 	}
 }
 
+func (sd *StatsdClient) IncBy(statName string, value int64) {
+	if sd.Client != nil {
+		err := (*sd.Client).Inc(statName, value, 1.0)
+		if err != nil {
+			loggly_client.GetInstance().Info("Error on Statsd Inc:" + err.Error())
+		}
+	}
+}
+
 func (sd *StatsdClient) Timing(statName string, value int64) {
 	if sd.Client != nil {
 		err := (*sd.Client).Timing(statName, value, 1.0)
