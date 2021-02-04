@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -117,6 +118,9 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 	}
 
 	pp.StatsdMetrics.IncBy("pool.proxy_weight_used", int64(weight))
+	if weight > 5 {
+		log.Printf("registered request with weigth > 5 : %d priority: %d", weight, priority)
+	}
 
 	currentProxyURL := currentProxy.URL
 	retryCounter := 0
