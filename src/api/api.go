@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -31,6 +32,10 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 
 	duration := time.Since(start)
 	pp.GetMetricsClient().Timing("api.getProxy.duration", int64(duration.Milliseconds()))
+
+	if weight > 10 {
+		log.Printf("Got request with %d priority and %d weight from %s", priority, weight, ctx.RemoteIP())
+	}
 
 	jsonStr, _ := json.Marshal(proxy)
 	_, _ = fmt.Fprint(ctx, string(jsonStr))
