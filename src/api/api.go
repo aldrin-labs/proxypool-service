@@ -3,9 +3,10 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"strconv"
 	"time"
+
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 
 	"github.com/buaazp/fasthttprouter"
 	"github.com/valyala/fasthttp"
@@ -29,7 +30,7 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 	proxy := pp.GetProxyByPriority(priority, weight)
 
 	duration := time.Since(start)
-	pp.GetMetricsClient().Timing("api.getProxy.duration", int64(duration.Seconds()))
+	pp.GetMetricsClient().Timing("api.getProxy.duration", int64(duration.Milliseconds()))
 
 	jsonStr, _ := json.Marshal(proxy)
 	_, _ = fmt.Fprint(ctx, string(jsonStr))

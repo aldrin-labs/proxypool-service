@@ -3,8 +3,9 @@ package healthcheck
 import (
 	"encoding/json"
 	"fmt"
-	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"time"
+
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 
 	"gitlab.com/crypto_project/core/proxypool_service/src/helpers"
 	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
@@ -134,7 +135,7 @@ func RunProxiesHealthcheck() {
 			duration := time.Since(hcStart)
 			loggly_client.GetInstance().Infof("Proxies healthcheck successful: %s", duration)
 			pp.GetMetricsClient().Inc("healthcheck.success")
-			pp.GetMetricsClient().Timing("healthcheck.duration", int64(duration.Seconds()))
+			pp.GetMetricsClient().Timing("healthcheck.duration", int64(duration.Milliseconds()))
 		} else {
 			pp.GetMetricsClient().Inc("healthcheck.failure")
 		}
