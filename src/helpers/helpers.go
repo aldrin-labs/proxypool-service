@@ -49,8 +49,12 @@ func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.H
 	}
 
 	myClient := &http.Client{
-		Transport: &http.Transport{Proxy: http.ProxyURL(parsedProxyURL)},
-		Timeout:   15 * time.Second,
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL(parsedProxyURL),
+			// possible fix for "connection reset by peer"
+			MaxConnsPerHost: 50,
+		},
+		Timeout: 15 * time.Second,
 	}
 
 	var body []byte
