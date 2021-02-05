@@ -50,7 +50,7 @@ func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.H
 
 	myClient := &http.Client{
 		Transport: &http.Transport{Proxy: http.ProxyURL(parsedProxyURL)},
-		Timeout:   10 * time.Second,
+		Timeout:   15 * time.Second,
 	}
 
 	var body []byte
