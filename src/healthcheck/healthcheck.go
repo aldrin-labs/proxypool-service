@@ -3,6 +3,7 @@ package healthcheck
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -178,11 +179,28 @@ func CreateProxyHttpClients(proxies [][]string) map[int]map[string]*http.Client 
 			}
 
 			proxyClient := &http.Client{
+				// TCP connection options
 				Transport: &http.Transport{
 					Proxy: http.ProxyURL(parsedProxyURL),
-					// possible fix for "connection reset by peer"
-					MaxConnsPerHost: 50,
+
+					// options below are possible fix for "connection reset by peer"
+
+					// options for establishing a connection
+					DialContext: (&net.Dialer{
+						Timeout:   5 * time.Second,
+						KeepAlive: 60 * time.Second,
+						DualStack: true,
+					}).DialContext,
+
+					// you will probably want to bump this number when we will have more that 200 proxies
+					MaxIdleConns:          200,
+					IdleConnTimeout:       60 * time.Second,
+					TLSHandshakeTimeout:   3 * time.Second,
+					ExpectContinueTimeout: 1 * time.Second,
+
+					MaxConnsPerHost: 3,
 				},
+				// total request timeout
 				Timeout: 15 * time.Second,
 			}
 
