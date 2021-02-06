@@ -11,7 +11,6 @@ import (
 
 	"gitlab.com/crypto_project/core/proxypool_service/src/helpers"
 	"gitlab.com/crypto_project/core/proxypool_service/src/pool"
-	"gitlab.com/crypto_project/core/proxypool_service/src/sources"
 )
 
 var healthcheckInterval = 20 * time.Second
@@ -160,8 +159,9 @@ func RunProxiesHealthcheck() {
 func reportProxyUnhealthy(proxyURL string) {
 	msg := fmt.Sprintf("Proxy %s is unhealthy", proxyURL)
 	loggly_client.GetInstance().Info(msg)
-	promNotifier := sources.GetPrometheusNotifierInstance()
-	promNotifier.Notify(msg, "proxyPoolService")
+
+	// promNotifier := sources.GetPrometheusNotifierInstance()
+	// promNotifier.Notify(msg, "proxyPoolService")
 }
 
 // TODO: make this singleton, so we don't create duplicates in healthcheck api call
