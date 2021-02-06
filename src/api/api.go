@@ -49,10 +49,15 @@ func TestProxies(ctx *fasthttp.RequestCtx) {
 
 	pp := pool.GetProxyPoolInstance()
 	proxies := pp.Proxies
+
+	proxyHttpClients := healthcheck.CreateProxyHttpClients(proxies)
+
 	numberRequests := 0
 	for priority := range proxies {
 		for _, proxyURL := range proxies[priority] {
-			go healthcheck.CheckProxy(proxyURL, priority, ch)
+			proxyHttpClient := proxyHttpClients[priority][proxyURL]
+
+			go healthcheck.CheckProxy(proxyURL, proxyHttpClient, priority, ch)
 			numberRequests++
 		}
 	}

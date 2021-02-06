@@ -3,6 +3,8 @@ package healthcheck
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"time"
 
 	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
@@ -14,7 +16,7 @@ import (
 
 var healthcheckInterval = 20 * time.Second
 
-func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
+func CheckProxy(proxyURL string, proxyHttpClient *http.Client, priority int, ch chan<- HealthCheckResponse) {
 	binanceFapiTimeEndpoint := "https://fapi.binance.com/fapi/v1/time"
 	binanceSpotEndpoint := "https://api.binance.com/api/v3/exchangeInfo"
 
@@ -27,14 +29,14 @@ func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 	}
 
 	start := time.Now()
-	rawResult, futuresHeaders, err := helpers.MakeHTTPRequestUsingProxy(binanceFapiTimeEndpoint, proxyURL)
+	rawResult, futuresHeaders, err := helpers.MakeHTTPRequestUsingProxy(proxyHttpClient, binanceFapiTimeEndpoint)
 	if err != nil {
 		ch <- hcResponse
 		return
 	}
 
 	duration := time.Since(start)
-	_, spotHeaders, err := helpers.MakeHTTPRequestUsingProxy(binanceSpotEndpoint, proxyURL)
+	_, spotHeaders, err := helpers.MakeHTTPRequestUsingProxy(proxyHttpClient, binanceSpotEndpoint)
 	if err != nil {
 		ch <- hcResponse
 		return
@@ -73,12 +75,12 @@ func CheckProxy(proxyURL string, priority int, ch chan<- HealthCheckResponse) {
 	return
 }
 
-func getProxyInfo(proxyURL string) (string, string) {
+func getProxyInfo(proxyHttpClient *http.Client, proxyURL string) (string, string) {
 	ipCheckEndpoint := "https://api.myip.com"
 
 	result := IPCheckResponse{}
 
-	rawResult, _, err := helpers.MakeHTTPRequestUsingProxy(ipCheckEndpoint, proxyURL)
+	rawResult, _, err := helpers.MakeHTTPRequestUsingProxy(proxyHttpClient, ipCheckEndpoint)
 	if err != nil {
 		return "", ""
 	}
@@ -92,8 +94,17 @@ func getProxyInfo(proxyURL string) (string, string) {
 }
 
 // warning, this call to binance is not counted in redis rate limiter (but takes only "1" weigth)
+// proxyURL format: http://login:pass@ip:port
 func RunProxiesHealthcheck() {
 	time.Sleep(3 * time.Second)
+
+	pp := pool.GetProxyPoolInstance()
+	proxies := pp.Proxies
+
+	// create proxy http clients (one client for one proxy)
+	// we will use these clients for whole service lifespan
+	proxyHttpClients := CreateProxyHttpClients(proxies)
+
 	for {
 		hcStart := time.Now()
 		// loggly_client.GetInstance().Infof("Starting proxy healthcheck...")
@@ -102,13 +113,15 @@ func RunProxiesHealthcheck() {
 
 		ch := make(chan HealthCheckResponse)
 
-		pp := pool.GetProxyPoolInstance()
-		proxies := pp.Proxies
 		numberRequests := 0
 		for priority := range proxies {
 			for _, proxyURL := range proxies[priority] {
-				go CheckProxy(proxyURL, priority, ch)
-				numberRequests++
+
+				proxyHttpClient := proxyHttpClients[priority][proxyURL]
+				if proxyHttpClient != nil {
+					go CheckProxy(proxyURL, proxyHttpClient, priority, ch)
+					numberRequests++
+				}
 			}
 		}
 
@@ -149,4 +162,36 @@ func reportProxyUnhealthy(proxyURL string) {
 	loggly_client.GetInstance().Info(msg)
 	promNotifier := sources.GetPrometheusNotifierInstance()
 	promNotifier.Notify(msg, "proxyPoolService")
+}
+
+// TODO: make this singleton, so we don't create duplicates in healthcheck api call
+func CreateProxyHttpClients(proxies [][]string) map[int]map[string]*http.Client {
+	proxyHttpClients := map[int]map[string]*http.Client{}
+
+	for priority := range proxies {
+		for _, proxyURL := range proxies[priority] {
+
+			parsedProxyURL, err := url.Parse(proxyURL)
+			if err != nil {
+				loggly_client.GetInstance().Info("ProxyURL parse error", err)
+				continue
+			}
+
+			proxyClient := &http.Client{
+				Transport: &http.Transport{
+					Proxy: http.ProxyURL(parsedProxyURL),
+					// possible fix for "connection reset by peer"
+					MaxConnsPerHost: 50,
+				},
+				Timeout: 15 * time.Second,
+			}
+
+			if proxyHttpClients[priority] == nil {
+				proxyHttpClients[priority] = map[string]*http.Client{}
+			}
+
+			proxyHttpClients[priority][proxyURL] = proxyClient
+		}
+	}
+	return proxyHttpClients
 }
