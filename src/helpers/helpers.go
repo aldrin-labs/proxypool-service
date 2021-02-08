@@ -46,14 +46,14 @@ func MakeHTTPRequestUsingProxy(proxyHttpClient *http.Client, URL string) (interf
 
 	resp, err := proxyHttpClient.Get(URL)
 	if err != nil {
-		loggly_client.GetInstance().Info("Request error", err)
+		loggly_client.GetInstance().Info("[MakeHTTPRequestUsingProxy] Request error: ", err)
 		return body, headers, err
 	}
 
 	defer resp.Body.Close()
 	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		loggly_client.GetInstance().Info("Request error: ", err)
+		loggly_client.GetInstance().Info("[MakeHTTPRequestUsingProxy] Request body read error: ", err)
 		return body, headers, err
 	}
 
