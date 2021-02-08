@@ -179,7 +179,7 @@ func CreateProxyHttpClients(proxies [][]string) map[int]map[string]*http.Client 
 			}
 
 			proxyClient := &http.Client{
-				// TCP connection options
+				// TCP & HTTP connection options. Reference: https://golang.org/src/net/http/transport.go
 				Transport: &http.Transport{
 					Proxy: http.ProxyURL(parsedProxyURL),
 
@@ -195,7 +195,7 @@ func CreateProxyHttpClients(proxies [][]string) map[int]map[string]*http.Client 
 					// you will probably want to bump this number when we will have more that 200 proxies
 					MaxIdleConns:          200,
 					IdleConnTimeout:       60 * time.Second,
-					TLSHandshakeTimeout:   3 * time.Second,
+					TLSHandshakeTimeout:   5 * time.Second,
 					ExpectContinueTimeout: 1 * time.Second,
 
 					MaxConnsPerHost: 3,
