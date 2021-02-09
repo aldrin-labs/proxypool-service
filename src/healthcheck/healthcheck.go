@@ -60,7 +60,8 @@ func CheckProxy(proxyURL string, proxyHttpClient *http.Client, priority int, ch 
 
 	jsonErr := json.Unmarshal(rawResult.([]byte), &result)
 	if jsonErr != nil {
-		loggly_client.GetInstance().Info("Json decode error:", rawResult)
+		loggly_client.GetInstance().Infof("Json decode error: %s", jsonErr)
+		loggly_client.GetInstance().Infof("Raw result: %v", rawResult)
 		ch <- hcResponse
 		return
 	}
