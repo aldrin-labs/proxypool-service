@@ -17,7 +17,7 @@ func (sd *StatsdClient) Init() {
 	host := os.Getenv("STATSD_HOST")
 	if host == "" {
 		loggly_client.GetInstance().Infof("Warning. Hostname for statsd is empty. Using default one.")
-		host = "statsd-release.infra"
+		host = "statsd.infra"
 	}
 	port := "8125"
 
