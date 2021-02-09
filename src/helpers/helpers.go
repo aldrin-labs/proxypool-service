@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
-	"time"
 
 	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 )
@@ -40,32 +38,22 @@ func FindIP(input string) string {
 	return regEx.FindString(input)
 }
 
-// MakeHTTPRequestUsingProxy - proxyURL format: http://login:pass@ip:port
-func MakeHTTPRequestUsingProxy(URL string, proxyURL string) (interface{}, http.Header, error) {
-
-	parsedProxyURL, err := url.Parse(proxyURL)
-	if err != nil {
-		loggly_client.GetInstance().Info("ProxyURL parse error", err)
-	}
-
-	myClient := &http.Client{
-		Transport: &http.Transport{Proxy: http.ProxyURL(parsedProxyURL)},
-		Timeout:   10 * time.Second,
-	}
+// MakeHTTPRequestUsingProxy
+func MakeHTTPRequestUsingProxy(proxyHttpClient *http.Client, URL string) (interface{}, http.Header, error) {
 
 	var body []byte
 	var headers http.Header
 
-	resp, err := myClient.Get(URL)
+	resp, err := proxyHttpClient.Get(URL)
 	if err != nil {
-		loggly_client.GetInstance().Info("Request error", err)
+		loggly_client.GetInstance().Info("[MakeHTTPRequestUsingProxy] Request error: ", err)
 		return body, headers, err
 	}
 
 	defer resp.Body.Close()
 	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		loggly_client.GetInstance().Info("Request error", err)
+		loggly_client.GetInstance().Info("[MakeHTTPRequestUsingProxy] Request body read error: ", err)
 		return body, headers, err
 	}
 

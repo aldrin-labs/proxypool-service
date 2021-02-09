@@ -3,9 +3,10 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"strconv"
 	"time"
+
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 
 	"github.com/buaazp/fasthttprouter"
 	"github.com/valyala/fasthttp"
@@ -24,12 +25,15 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 		priority = 1
 	}
 
-	// loggly_client.GetInstance().Infof("Got GetProxyByPriority request with %d priority and %d weight from %s", priority, weight, ctx.RemoteIP())
 	pp := pool.GetProxyPoolInstance()
 	proxy := pp.GetProxyByPriority(priority, weight)
 
 	duration := time.Since(start)
-	pp.GetMetricsClient().Timing("api.getProxy.duration", int64(duration.Seconds()))
+	pp.GetMetricsClient().Timing("api.getProxy.duration", int64(duration.Milliseconds()))
+
+	if weight > 50 {
+		loggly_client.GetInstance().Infof("Got GetProxyByPriority request with %d priority and %d weight from %s", priority, weight, ctx.RemoteIP())
+	}
 
 	jsonStr, _ := json.Marshal(proxy)
 	_, _ = fmt.Fprint(ctx, string(jsonStr))
@@ -45,10 +49,15 @@ func TestProxies(ctx *fasthttp.RequestCtx) {
 
 	pp := pool.GetProxyPoolInstance()
 	proxies := pp.Proxies
+
+	proxyHttpClients := healthcheck.CreateProxyHttpClients(proxies)
+
 	numberRequests := 0
 	for priority := range proxies {
 		for _, proxyURL := range proxies[priority] {
-			go healthcheck.CheckProxy(proxyURL, priority, ch)
+			proxyHttpClient := proxyHttpClients[priority][proxyURL]
+
+			go healthcheck.CheckProxy(proxyURL, proxyHttpClient, priority, ch)
 			numberRequests++
 		}
 	}

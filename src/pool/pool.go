@@ -3,11 +3,12 @@ package pool
 import (
 	"context"
 	"fmt"
-	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	loggly_client "gitlab.com/crypto_project/core/proxypool_service/src/sources/loggly"
 
 	"github.com/go-errors/errors"
 	"github.com/go-redis/redis/v8"
@@ -115,12 +116,19 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		return ProxyResponse{ProxyURL: "", Counter: 0}
 	}
 
+	pp.StatsdMetrics.IncBy("pool.proxy_weight_used", int64(weight))
+
 	currentProxyURL := currentProxy.URL
 	retryCounter := 0
 
 	for {
+		// make request to redis rate limiter
+		startRequestToRedis := time.Now()
 		// TODO: change currentProxyURL to better key (we have password there, not secure)
 		res, redisError := pp.RedisRateLimiter.AllowN(*pp.LimiterCtx, currentProxyURL, redis_rate.PerMinute(currentProxy.Limit), weight)
+		requestToRedisDuration := time.Since(startRequestToRedis)
+		pp.GetMetricsClient().Timing("pool.redis_rate_limiter_call.duration", int64(requestToRedisDuration.Milliseconds()))
+
 		if redisError != nil {
 			if retryCounter >= 3 {
 				loggly_client.GetInstance().Infof("Critical error! Failed to serve proxies after %d retries", retryCounter)
@@ -137,8 +145,10 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		}
 
 		if res.Allowed > 0 {
+			// if we can return proxy immediately
 			break
 		} else {
+			// if proxy is over rate limit we should throttle request
 			loggly_client.GetInstance().Info("All proxies are busy. Throttling for:", res.RetryAfter)
 
 			if priority == 0 {
