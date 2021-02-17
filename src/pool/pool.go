@@ -150,6 +150,7 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		} else {
 			// if proxy is over rate limit we should throttle request
 			loggly_client.GetInstance().Info("All proxies are busy. Throttling for:", res.RetryAfter)
+			pp.StatsdMetrics.Inc(fmt.Sprintf("pool.%d.throttled", priority))
 
 			if priority == 0 {
 				loggly_client.GetInstance().Info("Top priority proxy is blocked. Returning low priority proxy.")
@@ -157,7 +158,6 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 				return pp.GetLowPriorityProxy(weight)
 			}
 
-			pp.StatsdMetrics.Inc("pool.throttled")
 			time.Sleep(res.RetryAfter)
 		}
 	}
