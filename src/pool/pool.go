@@ -59,7 +59,7 @@ func newProxySingleton() *ProxyPool {
 	proxyMap[1] = map[string]*Proxy{}
 	currentProxyIndexes[1] = 0
 
-	limit := 900
+	limit := 1000
 
 	for i, proxyArr := range proxies {
 		loggly_client.GetInstance().Infof("Init %d proxies with %d priority...", len(proxyArr), i)
