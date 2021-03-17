@@ -163,7 +163,9 @@ func (pp *ProxyPool) GetProxyByPriority(dest string, priority int, weight int) P
 	go pp.reportProxyUsage(dest, currentProxy)
 
 	// loggly_client.GetInstance().Infof("Returning proxy: %s", currentProxyURL)
-	pp.StatsdMetrics.Inc("pool.proxy_served")
+	destMetricSafe := strings.ReplaceAll(dest, ".", "_")
+	destMetricSafe = strings.ReplaceAll(destMetricSafe, ":", "_")
+	pp.StatsdMetrics.Inc(fmt.Sprintf("pool.proxy_served.%v", destMetricSafe))
 	pp.proxyStatsMux.Lock()
 	usages :=  currentProxy.Usages[dest]
 	pp.proxyStatsMux.Unlock()
