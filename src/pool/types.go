@@ -10,8 +10,9 @@ import (
 )
 
 type ProxyPool struct {
-	Proxies             [][]string
-	CurrentProxyIndexes map[int]int
+	Proxies [][]string
+	// Indexes by destination, map[destination]map[priority]index
+	CurrentProxyIndexes map[string]map[int]int
 	ExchangeProxyMap    map[int]map[string]*Proxy
 
 	LimiterCtx       *context.Context
@@ -26,7 +27,7 @@ type ProxyPool struct {
 
 type Proxy struct {
 	URL                    string
-	Usages                 int
+	Usages                 map[string]int // number of usages by destination
 	Limit                  int
 	Healthy                bool
 	HealthStatusLastChange int64
