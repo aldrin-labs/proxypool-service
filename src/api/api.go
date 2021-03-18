@@ -18,7 +18,10 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 	start := time.Now()
 	ctx.SetContentType("application/json; charset=utf8")
 
-	dest := string(ctx.Host())
+	dest := string(ctx.QueryArgs().Peek("destination"))
+	if dest == "" {
+		dest = "undefined"
+	}
 	priority, err := strconv.Atoi(string(ctx.QueryArgs().Peek("priority")))
 	weight, err := strconv.Atoi(string(ctx.QueryArgs().Peek("weight")))
 	if err != nil {
