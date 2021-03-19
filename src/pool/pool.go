@@ -69,9 +69,6 @@ func newProxySingleton() *ProxyPool {
 				URL:     proxyURL,
 				Healthy: true,
 			}
-
-			// Uncomment this to test with only one proxy for each priority
-			break
 		}
 	}
 
