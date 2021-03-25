@@ -51,22 +51,20 @@ func newProxySingleton() *ProxyPool {
 	helpers.GetProxiesFromENV(&proxies)
 
 	proxyMap := map[int]map[string]*Proxy{}
-	currentProxyIndexes := map[int]int{}
+	currentProxyIndexes := make(map[string]map[int]int)
 
 	// 0 - max priority (e.g. for trading), 1 - less priority
 	proxyMap[0] = map[string]*Proxy{}
-	currentProxyIndexes[0] = 0
 	proxyMap[1] = map[string]*Proxy{}
-	currentProxyIndexes[1] = 0
 
-	limit := 900
+	limit := 1000
 
 	for i, proxyArr := range proxies {
 		loggly_client.GetInstance().Infof("Init %d proxies with %d priority...", len(proxyArr), i)
 
 		for _, proxyURL := range proxyArr {
 			proxyMap[i][proxyURL] = &Proxy{
-				Usages:  0,
+				Usages:  make(map[string]int),
 				Limit:   limit,
 				URL:     proxyURL,
 				Healthy: true,
@@ -104,13 +102,13 @@ func GetProxyPoolInstance() *ProxyPool {
 	return proxySingleton
 }
 
-func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse {
+func (pp *ProxyPool) GetProxyByPriority(dest string, priority int, weight int) ProxyResponse {
 	if pp.Proxies == nil {
 		pp.StatsdMetrics.Inc("pool.empty_proxy_returned")
 		return ProxyResponse{ProxyURL: "", Counter: 0}
 	}
 
-	currentProxy, err := pp.SelectProxy(priority)
+	currentProxy, err := pp.SelectProxy(dest, priority)
 	if err != nil {
 		pp.StatsdMetrics.Inc("pool.empty_proxy_returned")
 		return ProxyResponse{ProxyURL: "", Counter: 0}
@@ -118,14 +116,14 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 
 	pp.StatsdMetrics.IncBy("pool.proxy_weight_used", int64(weight))
 
-	currentProxyURL := currentProxy.URL
+	limiterKey := currentProxy.URL + "-" + dest
 	retryCounter := 0
 
 	for {
 		// make request to redis rate limiter
 		startRequestToRedis := time.Now()
-		// TODO: change currentProxyURL to better key (we have password there, not secure)
-		res, redisError := pp.RedisRateLimiter.AllowN(*pp.LimiterCtx, currentProxyURL, redis_rate.PerMinute(currentProxy.Limit), weight)
+		// TODO: change limiterKey to better key (we have password there, not secure)
+		res, redisError := pp.RedisRateLimiter.AllowN(*pp.LimiterCtx, limiterKey, redis_rate.PerMinute(currentProxy.Limit), weight)
 		requestToRedisDuration := time.Since(startRequestToRedis)
 		pp.GetMetricsClient().Timing("pool.redis_rate_limiter_call.duration", int64(requestToRedisDuration.Milliseconds()))
 
@@ -150,44 +148,52 @@ func (pp *ProxyPool) GetProxyByPriority(priority int, weight int) ProxyResponse 
 		} else {
 			// if proxy is over rate limit we should throttle request
 			loggly_client.GetInstance().Info("All proxies are busy. Throttling for:", res.RetryAfter)
+			pp.StatsdMetrics.Inc(fmt.Sprintf("pool.%d.throttled.%s", priority, dest))
 
 			if priority == 0 {
 				loggly_client.GetInstance().Info("Top priority proxy is blocked. Returning low priority proxy.")
 				pp.StatsdMetrics.Inc("pool.lower_priority_proxy_switch")
-				return pp.GetLowPriorityProxy(weight)
+				return pp.GetLowPriorityProxy(dest, weight)
 			}
 
-			pp.StatsdMetrics.Inc("pool.throttled")
 			time.Sleep(res.RetryAfter)
 		}
 	}
 
-	go pp.reportProxyUsage(currentProxy)
+	go pp.reportProxyUsage(dest, currentProxy)
 
 	// loggly_client.GetInstance().Infof("Returning proxy: %s", currentProxyURL)
-	pp.StatsdMetrics.Inc("pool.proxy_served")
+	destMetricSafe := strings.ReplaceAll(dest, ".", "_")
+	destMetricSafe = strings.ReplaceAll(destMetricSafe, ":", "_")
+	pp.StatsdMetrics.Inc(fmt.Sprintf("pool.proxy_served.%v", destMetricSafe))
+	pp.proxyStatsMux.Lock()
+	usages :=  currentProxy.Usages[dest]
+	pp.proxyStatsMux.Unlock()
 	return ProxyResponse{
-		ProxyURL: currentProxyURL,
-		Counter:  currentProxy.Usages,
+		ProxyURL: currentProxy.URL,
+		Counter:  usages,
 	}
 }
 
-func (pp *ProxyPool) GetLowPriorityProxy(weight int) ProxyResponse {
-	return pp.GetProxyByPriority(1, weight)
+func (pp *ProxyPool) GetLowPriorityProxy(dest string, weight int) ProxyResponse {
+	return pp.GetProxyByPriority(dest, 1, weight)
 }
 
-func (pp *ProxyPool) GetTopPriorityProxy(weight int) ProxyResponse {
-	return pp.GetProxyByPriority(0, weight)
+func (pp *ProxyPool) GetTopPriorityProxy(dest string, weight int) ProxyResponse {
+	return pp.GetProxyByPriority(dest, 0, weight)
 }
 
-func (pp *ProxyPool) selectProxyByRoundRobin(priority int) *Proxy {
+func (pp *ProxyPool) selectProxyByRoundRobin(dest string, priority int) *Proxy {
 	// TODO: maybe it's better to use sync.map here
 	pp.proxyIndexesMux.Lock()
 
-	currentIndex := pp.CurrentProxyIndexes[priority]
-	pp.CurrentProxyIndexes[priority] = currentIndex + 1
+	if pp.CurrentProxyIndexes[dest] == nil {
+		pp.CurrentProxyIndexes[dest] = make(map[int]int)
+	}
+	currentIndex := pp.CurrentProxyIndexes[dest][priority]
+	pp.CurrentProxyIndexes[dest][priority] = currentIndex + 1
 	if currentIndex >= len(pp.Proxies[priority]) {
-		pp.CurrentProxyIndexes[priority] = 1
+		pp.CurrentProxyIndexes[dest][priority] = 1
 		currentIndex = 0
 	}
 
@@ -233,18 +239,18 @@ func (pp *ProxyPool) MarkProxyAsHealthy(proxyPriority int, proxyURL string) {
 	}
 }
 
-func (pp *ProxyPool) SelectProxy(priority int) (*Proxy, error) {
+func (pp *ProxyPool) SelectProxy(dest string, priority int) (*Proxy, error) {
 	currentProxy := &Proxy{}
 
 	var retries = 0
 	for {
 		atLeastOneProxyIsHealthy := pp.AtLeastOneProxyIsHealthy(priority)
 		if atLeastOneProxyIsHealthy {
-			currentProxy = pp.selectProxyByRoundRobin(priority)
+			currentProxy = pp.selectProxyByRoundRobin(dest, priority)
 		} else {
 			if priority == 0 {
 				// try proxy with lower priority
-				currentProxy = pp.selectProxyByRoundRobin(1)
+				currentProxy = pp.selectProxyByRoundRobin(dest, 1)
 			} else {
 				// just wait, nothing more to do, all proxies are unhealthy
 				time.Sleep(10 * time.Second)
@@ -274,13 +280,17 @@ func (pp *ProxyPool) AtLeastOneProxyIsHealthy(priority int) bool {
 }
 
 func (pp *ProxyPool) GetStats() []string {
-	stats := []string{}
+	var stats []string
 	timeSinceStartup := time.Since(pp.StartupTime).Seconds()
 
 	for priority := range pp.ExchangeProxyMap {
 		for _, proxy := range pp.ExchangeProxyMap[priority] {
 			proxyIP := helpers.FindIP(proxy.URL)
-			data := fmt.Sprintf("Proxy %s with priority %d got %f requests/sec on avg \n", proxyIP, priority, float64(proxy.Usages)/timeSinceStartup)
+			usages := 0
+			for _, cnt := range proxy.Usages {
+				usages += cnt
+			}
+			data := fmt.Sprintf("Proxy %s with priority %d got %f requests/sec on avg \n", proxyIP, priority, float64(usages)/timeSinceStartup)
 			stats = append(stats, data)
 		}
 	}
@@ -292,8 +302,8 @@ func (pp *ProxyPool) GetMetricsClient() *sources.StatsdClient {
 	return pp.StatsdMetrics
 }
 
-func (pp *ProxyPool) reportProxyUsage(proxy *Proxy) {
+func (pp *ProxyPool) reportProxyUsage(dest string, proxy *Proxy) {
 	pp.proxyStatsMux.Lock()
-	proxy.Usages++
+	proxy.Usages[dest]++
 	pp.proxyStatsMux.Unlock()
 }

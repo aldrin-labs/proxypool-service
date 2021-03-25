@@ -18,6 +18,10 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 	start := time.Now()
 	ctx.SetContentType("application/json; charset=utf8")
 
+	dest := string(ctx.QueryArgs().Peek("destination"))
+	if dest == "" {
+		dest = "undefined"
+	}
 	priority, err := strconv.Atoi(string(ctx.QueryArgs().Peek("priority")))
 	weight, err := strconv.Atoi(string(ctx.QueryArgs().Peek("weight")))
 	if err != nil {
@@ -26,17 +30,21 @@ func GetProxy(ctx *fasthttp.RequestCtx) {
 	}
 
 	pp := pool.GetProxyPoolInstance()
-	proxy := pp.GetProxyByPriority(priority, weight)
+	proxy := pp.GetProxyByPriority(dest, priority, weight)
 
+	if weight > 50 {
+		loggly_client.GetInstance().Infof("Got GetProxyByPriority request with %d priority and %d weight from %s for %s", priority, weight, ctx.RemoteIP(), dest)
+	}
+
+	// prepare response
+	jsonBytes, _ := json.Marshal(proxy)
+	jsonString := string(jsonBytes)
+
+	// measure response time
 	duration := time.Since(start)
 	pp.GetMetricsClient().Timing("api.getProxy.duration", int64(duration.Milliseconds()))
 
-	if weight > 50 {
-		loggly_client.GetInstance().Infof("Got GetProxyByPriority request with %d priority and %d weight from %s", priority, weight, ctx.RemoteIP())
-	}
-
-	jsonStr, _ := json.Marshal(proxy)
-	_, _ = fmt.Fprint(ctx, string(jsonStr))
+	_, _ = fmt.Fprint(ctx, jsonString)
 }
 
 func TestProxy(ctx *fasthttp.RequestCtx) {

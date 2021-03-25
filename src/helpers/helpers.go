@@ -29,6 +29,11 @@ func GetProxiesFromENV(proxies *[][]string) {
 		loggly_client.GetInstance().Info("json error:", jsonErr)
 		return
 	}
+	// Uncomment this to test with only one proxy for each priority
+	// for idx, row := range *proxies {
+	// 	(*proxies)[idx] = []string{row[0]}
+	// }
+	// loggly_client.GetInstance().Info("Testing with only one proxy per priority: ", *proxies)
 }
 
 func FindIP(input string) string {
