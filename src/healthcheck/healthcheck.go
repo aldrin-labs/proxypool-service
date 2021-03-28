@@ -140,10 +140,10 @@ func RunProxiesHealthcheck() {
 				reportProxyUnhealthy(proxyURL)
 				pp.MarkProxyAsUnhealthy(checkResult.ProxyPriority, proxyURL)
 				healthcheckSuccessful = false
-				healthyCnt++
+				unhealthyCnt++
 			} else {
 				pp.MarkProxyAsHealthy(checkResult.ProxyPriority, proxyURL)
-				unhealthyCnt++
+				healthyCnt++
 			}
 			anyCnt++
 		}
