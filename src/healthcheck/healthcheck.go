@@ -134,16 +134,22 @@ func RunProxiesHealthcheck() {
 		}
 
 		healthcheckSuccessful := true
+		var anyCnt, healthyCnt, unhealthyCnt int64
 		for proxyURL, checkResult := range results {
 			if checkResult.Success == false {
 				reportProxyUnhealthy(proxyURL)
 				pp.MarkProxyAsUnhealthy(checkResult.ProxyPriority, proxyURL)
 				healthcheckSuccessful = false
-				pp.GetMetricsClient().Inc("healthcheck.unhealthy_proxy")
+				unhealthyCnt++
 			} else {
 				pp.MarkProxyAsHealthy(checkResult.ProxyPriority, proxyURL)
+				healthyCnt++
 			}
+			anyCnt++
 		}
+		pp.GetMetricsClient().Gauge("pool.now.any", anyCnt)
+		pp.GetMetricsClient().Gauge("pool.now.healthy", healthyCnt)
+		pp.GetMetricsClient().Gauge("pool.now.unhealthy", unhealthyCnt)
 
 		if healthcheckSuccessful {
 			duration := time.Since(hcStart)
